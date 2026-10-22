@@ -1,0 +1,26 @@
+# Carpeta específica solicitada
+gitignore/
+
+# Maven - archivos de compilación y empaquetado
+target/
+**/target/
+*.class
+
+# IDEs y Editores
+.idea/
+*.iml
+*.iws
+.vscode/
+*.ipr
+.settings/
+.project
+.classpath
+
+# Logs y temporales
+*.log
+*.tmp
+*.bak
+
+# SO
+.DS_Store
+Thumbs.db
