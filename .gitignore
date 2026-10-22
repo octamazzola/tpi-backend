@@ -1,0 +1,16 @@
+# OSRM data (pesa +4 GB y GitHub solo permite archivos <100MB)
+osrm-data/
+*.osm.pbf
+
+# Maven & Build
+**/target/
+target/
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Sistema operativo
+Thumbs.db
+.DS_Store
