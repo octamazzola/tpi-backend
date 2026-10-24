@@ -42,21 +42,21 @@ Todas las peticiones externas ingresan a través del **API Gateway** (`http://lo
 ---
 
 ### 🧭 3.2. Microservicio de Catálogo (`ms-catalogo`)
-* **Responsabilidad:** Administrar las actividades turísticas y sus puntos de encuentro.
+* **Responsabilidad:** Administrar las actividades turísticas, categorías y sus puntos de encuentro.
 * **Puerto interno:** `8081` | **Ruta pública Gateway:** `/api/v1/catalogo`
 
-#### Endpoints:
+#### Endpoints ordenados por tipo de petición:
 
 | Método | Endpoint Gateway | Rol Mínimo | Descripción |
 |---|---|---|---|
 | `GET` | `/api/v1/catalogo/actividades` | Público | Lista actividades con filtros opcionales (`categoria`, `dificultad`, `precioMax`, `ciudad`). |
 | `GET` | `/api/v1/catalogo/actividades/{id}` | Público | Obtiene el detalle completo de una actividad (descripción, coordenadas de inicio, cupo máximo). |
+| `GET` | `/api/v1/catalogo/actividades/{id}/disponibilidad` | Público | Consulta si hay cupos disponibles para una fecha específica (usado por reservas). |
+| `GET` | `/api/v1/catalogo/categorias` | Público | Lista de categorías de excursiones (Trekking, Navegación, Cabalgata, etc.). |
 | `POST` | `/api/v1/catalogo/actividades` | `OPERADOR`, `ADMIN` | Crea una nueva actividad turística con sus datos geográficos y cupos. |
+| `POST` | `/api/v1/catalogo/categorias` | `ADMIN` | Crea una nueva categoría. |
 | `PUT` | `/api/v1/catalogo/actividades/{id}` | `OPERADOR`, `ADMIN` | Actualiza la información y condiciones de una actividad existente. |
 | `DELETE` | `/api/v1/catalogo/actividades/{id}` | `ADMIN` | Da de baja lógica una actividad turística. |
-| `GET` | `/api/v1/catalogo/actividades/{id}/disponibilidad` | Público | Consulta si hay cupos disponibles para una fecha específica (usado internamente por reservas). |
-| `GET` | `/api/v1/catalogo/categorias` | Público | Lista de categorías de excursiones (Trekking, Navegación, Cabalgata, etc.). |
-| `POST` | `/api/v1/catalogo/categorias` | `ADMIN` | Crea una nueva categoría. |
 
 #### Ejemplo Payload `POST /api/v1/catalogo/actividades`:
 ```json
@@ -80,16 +80,16 @@ Todas las peticiones externas ingresan a través del **API Gateway** (`http://lo
 * **Responsabilidad:** Gestionar el ciclo de vida de las reservas y orquestar reglas de negocio inter-servicio.
 * **Puerto interno:** `8082` | **Ruta pública Gateway:** `/api/v1/reservas`
 
-#### Endpoints:
+#### Endpoints ordenados por tipo de petición:
 
 | Método | Endpoint Gateway | Rol Mínimo | Descripción |
 |---|---|---|---|
-| `POST` | `/api/v1/reservas` | `TURISTA` | Crea una nueva reserva. Ejecuta la validación de negocio inter-servicio. |
 | `GET` | `/api/v1/reservas/mis-reservas` | `TURISTA` | Consulta las reservas del usuario autenticado (extraído del token JWT). |
 | `GET` | `/api/v1/reservas/{id}` | `TURISTA`, `OPERADOR` | Obtiene el detalle de una reserva específica (con control de acceso por usuario). |
-| `PUT` | `/api/v1/reservas/{id}/cancelar` | `TURISTA`, `ADMIN` | Cancela una reserva existente según políticas de anticipación horaria. |
-| `PUT` | `/api/v1/reservas/{id}/confirmar` | `OPERADOR`, `ADMIN` | Confirma la reserva una vez acreditado el pago o autorizada la actividad. |
 | `GET` | `/api/v1/reservas/actividad/{actividadId}` | `OPERADOR`, `ADMIN` | Lista todas las reservas asociadas a una excursión para organizar el contingente. |
+| `POST` | `/api/v1/reservas` | `TURISTA` | Crea una nueva reserva. Ejecuta la validación de negocio inter-servicio. |
+| `PUT` | `/api/v1/reservas/{id}/confirmar` | `OPERADOR`, `ADMIN` | Confirma la reserva una vez acreditado el pago o autorizada la actividad. |
+| `PUT` | `/api/v1/reservas/{id}/cancelar` | `TURISTA`, `ADMIN` | Cancela una reserva existente según políticas de anticipación horaria. |
 
 #### Ejemplo Payload `POST /api/v1/reservas`:
 ```json
@@ -132,13 +132,13 @@ Todas las peticiones externas ingresan a través del **API Gateway** (`http://lo
 * **Responsabilidad:** Cálculos de rutas, tiempos de viaje terrestre y distancias entre puntos geográficos mediante OSRM.
 * **Puerto interno:** `8083` | **Ruta pública Gateway:** `/api/v1/geo`
 
-#### Endpoints:
+#### Endpoints ordenados por tipo de petición:
 
 | Método | Endpoint Gateway | Rol Mínimo | Descripción |
 |---|---|---|---|
-| `POST` | `/api/v1/geo/rutas/distancia` | Autenticado | Calcula distancia exacta y tiempo estimado entre origen y destino terrestre. |
 | `GET` | `/api/v1/geo/rutas/estimacion` | Autenticado | Versión rápida por QueryParams (`?latOrig=...&lonOrig=...&latDest=...&lonDest=...`). |
 | `GET` | `/api/v1/geo/health-osrm` | `ADMIN` | Chequeo de conectividad y estado del motor local OSRM. |
+| `POST` | `/api/v1/geo/rutas/distancia` | Autenticado | Calcula distancia exacta y tiempo estimado entre origen y destino terrestre. |
 
 #### Ejemplo Payload `POST /api/v1/geo/rutas/distancia`:
 ```json
