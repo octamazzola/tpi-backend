@@ -88,14 +88,32 @@ Implementa el patrón **Separated Interface** (SOLID - Inversión de Dependencia
 
 ---
 
-## 💡 4. Decisiones de Diseño y Justificaciones Técnicas
+## 💡 4. Patrones de Diseño y Principios Arquitectónicos Implementados
 
-| Decisión Técnica | Justificación para el TPI |
-|---|---|
-| **Patrón Separated Interface (`impl/`)** | Cumple con el Principio de Inversión de Dependencias (SOLID). El controlador solo conoce la interfaz, permitiendo mockear servicios en tests unitarios. |
-| **Separación en 3 Niveles de Validación** | *Nivel DTO:* Rechaza entradas con formato incorrecto (`400 Bad Request`) en la entrada HTTP.<br>*Nivel Service:* Valida existencia de entidades y reglas de negocio.<br>*Nivel Entidad:* Garantiza integridad referencial en la base de datos SQL. |
-| **Baja Lógica (`activa = false`)** | Un `DELETE /actividades/{id}` físico rompería las reservas históricas o asociadas de los turistas. La baja lógica oculta la actividad del catálogo sin destruir datos. |
-| **`@Enumerated(EnumType.STRING)`** | Evita inconsistencias en base de datos si en el futuro se agregan nuevos niveles de dificultad al enum. |
+El microservicio aplica formalmente un conjunto de patrones de diseño clásicos (GoF, Martin Fowler y DDD) y principios de ingeniería de software:
+
+| Patrón / Principio | Tipo / Autor | Dónde se aplica en `ms-catalogo` | Beneficio técnico |
+|---|---|---|---|
+| **Layered Architecture** *(Arquitectura en Capas)* | Arquitectónico | División estricta en `controllers`, `services`, `mappers`, `repositories`, `entities`. | Alta cohesión, bajo acoplamiento y separación de incumbencias (SoC). |
+| **Data Transfer Object (DTO)** | Fowler (PoEAA) | Paquete `dtos/` (`ActividadRequestDTO`, `ActividadResponseDTO`, etc.). | Desacopla la API del esquema SQL, previene *over-posting* (seguridad) y aplica Bean Validation. |
+| **Repository Pattern** | Eric Evans (DDD) / Spring Data | `CategoriaRepository`, `ActividadRepository` (`JpaRepository`). | Aísla la capa de negocio del acceso a datos, simulando una colección de objetos en memoria. |
+| **Service Layer** *(Capa de Servicio)* | Fowler (PoEAA) | `CategoriaService`, `ActividadService` con `@Transactional`. | Centraliza las reglas de negocio, coordinando repositorios y mappers en transacciones atómicas. |
+| **Separated Interface** | Fowler (PoEAA) | Interfaces en `services/` e implementaciones en `services/impl/`. | Cumple con la **D** de SOLID (Inversión de Dependencias). Los controladores solo conocen la interfaz, facilitando mocks para tests. |
+| **Data Mapper / Mapper** | Fowler (PoEAA) | `CategoriaMapper`, `ActividadMapper` (`@Component`). | Traduce datos entre Entidades y DTOs sin ensuciar la lógica de negocio con código repetitivo de conversión. |
+| **Builder Pattern** | Gang of Four (GoF) / Lombok | `@Builder` en Entidades y DTOs (`Actividad.builder()...build()`). | Construcción fluida, legible e inmutable de objetos, evitando constructores sobrecargados (*telescoping constructor*). |
+| **Dependency Injection (DI / IoC)** | Principio SOLID / Spring | Inyección por constructor mediante `@RequiredArgsConstructor` y campos `final`. | Inmutabilidad de dependencias, desacoplamiento y facilidad para pruebas unitarias. |
+| **Soft Delete** *(Baja Lógica)* | Patrón de Datos | Campo `activa = false` en `Actividad` y métodos `findByActivaTrue()`. | Preserva la integridad referencial histórica con futuras reservas sin destruir registros físicos. |
+
+---
+
+## 🛡️ 5. Los 3 Niveles de Validación
+
+| Nivel | Componente | Responsabilidad | Ejemplo en el código |
+|---|---|---|---|
+| **1. Sintáctico / Formato** | DTOs (Bean Validation) | Valida que los datos de entrada sean correctos antes de entrar a la lógica. | `@NotBlank`, `@Positive`, `@Min(1)`, `@Size` |
+| **2. Semántico / Negocio** | Services (`services/impl`) | Valida existencia de relaciones, reglas de negocio y duplicados. | `existsByNombreIgnoreCase`, `findByIdAndActivaTrue` |
+| **3. Integridad SQL** | Entidades JPA | Garantiza restricciones relacionales en el motor de base de datos. | `@Column(nullable = false)`, `@JoinColumn` |
+
 
 ---
 
