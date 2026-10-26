@@ -1,6 +1,12 @@
 # Carpeta específica solicitada
 gitignore/
 
+# Ignorar archivos Markdown excepto README.md
+*.md
+**/*.md
+!README.md
+!**/README.md
+
 # Maven - archivos de compilación y empaquetado
 target/
 **/target/
