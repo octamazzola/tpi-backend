@@ -1,11 +1,13 @@
 # Carpeta específica solicitada
 gitignore/
 
-# Ignorar archivos Markdown excepto README.md
+# Ignorar archivos Markdown excepto README.md y guías del proyecto
 *.md
 **/*.md
 !README.md
 !**/README.md
+!GUIA-AUTENTICACION-KEYCLOAK-POSTMAN.md
+!ROLES-Y-PERMISOS-RBAC.md
 
 # Maven - archivos de compilación y empaquetado
 target/
@@ -30,3 +32,7 @@ target/
 # SO
 .DS_Store
 Thumbs.db
+
+# Datos de mapas pesados de OSRM
+osrm-data/
+osrm-data.zip

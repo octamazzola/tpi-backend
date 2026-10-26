@@ -27,7 +27,37 @@ services:
       - tpi-network
 
   # =========================================================================
-  # 2. Microservicio de Catálogo (Spring Boot 3.3.5 / Java 21)
+  # 2. Servidor de Correos Local: Mailpit (SMTP + Web UI para pruebas)
+  # =========================================================================
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit
+    ports:
+      # Puerto 1025: Servidor SMTP donde Spring Boot (ms-reservas) envía los emails
+      - "1025:1025"
+      # Puerto 8025: Bandeja de entrada web visual (http://localhost:8025)
+      - "8025:8025"
+    networks:
+      - tpi-network
+
+  # =========================================================================
+  # 3. Identity Provider (IdP): Keycloak 24 (OIDC / OAuth2 / Tokens JWT)
+  # =========================================================================
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.5
+    container_name: keycloak
+    command: start-dev
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      # Puerto 8180 mapeado al 8080 del contenedor para no colisionar con el Gateway
+      - "8180:8080"
+    networks:
+      - tpi-network
+
+  # =========================================================================
+  # 4. Microservicio de Catálogo (Spring Boot 3.3.5 / Java 21)
   # =========================================================================
   ms-catalogo:
     container_name: ms-catalogo
@@ -54,6 +84,33 @@ services:
       # ms-catalogo NO arranca hasta que postgres-db pase exitosamente su healthcheck
       postgres-db:
         condition: service_healthy
+    networks:
+      - tpi-network
+
+  # =========================================================================
+  # 5. API Gateway (Spring Cloud Gateway / Puerto 8080)
+  # =========================================================================
+  api-gateway:
+    container_name: api-gateway
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    ports:
+      # Punto único de entrada al sistema para el cliente / frontend
+      - "8080:8080"
+    environment:
+      SPRING_APPLICATION_NAME: api-gateway
+      SERVER_PORT: 8080
+      # En la red virtual de Docker, los hosts se resuelven por el nombre del contenedor
+      MS_CATALOGO_URL: http://ms-catalogo:8081
+      MS_RESERVAS_URL: http://ms-reservas:8082
+      GEOAPI_URL: http://geoapi:8083
+      # URL interna de Keycloak dentro de Docker
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/tpi-realm
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/tpi-realm/protocol/openid-connect/certs
+    depends_on:
+      - ms-catalogo
+      - keycloak
     networks:
       - tpi-network
 

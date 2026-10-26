@@ -1,0 +1,664 @@
+{
+	"info": {
+		"_postman_id": "tpi-backend-complete-collection-2026",
+		"name": "TPI Backend - Suite Completa de Microservicios (RBAC)",
+		"description": "Colección completa y organizada para probar todos los microservicios (Catálogo, Reservas, GeoAPI/OSRM) con autenticación basada en roles (Turista, Proveedor/Operador y Administrador) a través de Keycloak y Spring Cloud Gateway.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "keycloakUrl",
+			"value": "http://localhost:8180",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "token_turista",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "token_proveedor",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "token_admin",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "0. Autenticación y Obtención de Tokens (Keycloak)",
+			"description": "Endpoints directos a Keycloak para obtener tokens JWT. Cada petición guarda automáticamente el token en {{token}} (token activo) y en su variable específica ({{token_turista}}, {{token_proveedor}}, {{token_admin}}).",
+			"item": [
+				{
+					"name": "0.1 Iniciar Sesión como TURISTA (turista1)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.access_token) {",
+									"    pm.collectionVariables.set('token', jsonData.access_token);",
+									"    pm.collectionVariables.set('token_turista', jsonData.access_token);",
+									"    console.log('✅ Token de TURISTA guardado como token activo');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{ "key": "client_id", "value": "tpi-client", "type": "text" },
+								{ "key": "grant_type", "value": "password", "type": "text" },
+								{ "key": "username", "value": "turista1", "type": "text" },
+								{ "key": "password", "value": "1234", "type": "text" }
+							]
+						},
+						"url": {
+							"raw": "{{keycloakUrl}}/realms/tpi-realm/protocol/openid-connect/token",
+							"host": ["{{keycloakUrl}}"],
+							"path": ["realms", "tpi-realm", "protocol", "openid-connect", "token"]
+						},
+						"description": "Autentica al usuario 'turista1' con rol TURISTA. El script de pruebas asigna el token a {{token}} para probar de inmediato las acciones de turista."
+					},
+					"response": []
+				},
+				{
+					"name": "0.2 Iniciar Sesión como PROVEEDOR / OPERADOR (operador1)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.access_token) {",
+									"    pm.collectionVariables.set('token', jsonData.access_token);",
+									"    pm.collectionVariables.set('token_proveedor', jsonData.access_token);",
+									"    console.log('✅ Token de PROVEEDOR guardado como token activo');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{ "key": "client_id", "value": "tpi-client", "type": "text" },
+								{ "key": "grant_type", "value": "password", "type": "text" },
+								{ "key": "username", "value": "operador1", "type": "text" },
+								{ "key": "password", "value": "1234", "type": "text" }
+							]
+						},
+						"url": {
+							"raw": "{{keycloakUrl}}/realms/tpi-realm/protocol/openid-connect/token",
+							"host": ["{{keycloakUrl}}"],
+							"path": ["realms", "tpi-realm", "protocol", "openid-connect", "token"]
+						},
+						"description": "Autentica al guía o agencia 'operador1' con rol OPERADOR / PROVEEDOR. Guarda el token en {{token}} para publicar o modificar excursiones."
+					},
+					"response": []
+				},
+				{
+					"name": "0.3 Iniciar Sesión como ADMINISTRADOR (admin1)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.access_token) {",
+									"    pm.collectionVariables.set('token', jsonData.access_token);",
+									"    pm.collectionVariables.set('token_admin', jsonData.access_token);",
+									"    console.log('✅ Token de ADMIN guardado como token activo');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{ "key": "client_id", "value": "tpi-client", "type": "text" },
+								{ "key": "grant_type", "value": "password", "type": "text" },
+								{ "key": "username", "value": "admin1", "type": "text" },
+								{ "key": "password", "value": "1234", "type": "text" }
+							]
+						},
+						"url": {
+							"raw": "{{keycloakUrl}}/realms/tpi-realm/protocol/openid-connect/token",
+							"host": ["{{keycloakUrl}}"],
+							"path": ["realms", "tpi-realm", "protocol", "openid-connect", "token"]
+						},
+						"description": "Autentica al usuario 'admin1' con rol ADMIN. Permite gestionar categorías, dar bajas lógicas y ver métricas."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "1. Microservicio Catálogo (ms-catalogo)",
+			"description": "Gestión de actividades turísticas, excursiones y categorías.",
+			"item": [
+				{
+					"name": "1.1 Endpoints Públicos (Cualquiera / Sin Token)",
+					"item": [
+						{
+							"name": "1.1.1 Listar Actividades (Filtros Opcionales)",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/catalogo/actividades?categoriaId=1&dificultad=ALTA&precioMax=60000",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "catalogo", "actividades"],
+									"query": [
+										{ "key": "categoriaId", "value": "1", "description": "Filtro por ID de categoría" },
+										{ "key": "dificultad", "value": "ALTA", "description": "BAJA, MEDIA, ALTA, EXPERTO" },
+										{ "key": "precioMax", "value": "60000", "description": "Precio máximo base" },
+										{ "key": "activa", "value": "true", "disabled": true, "description": "Solo activas por defecto" }
+									]
+								},
+								"description": "PÚBLICO: Cualquier usuario anónimo o turista puede navegar el catálogo sin estar autenticado."
+							},
+							"response": []
+						},
+						{
+							"name": "1.1.2 Detalle de Actividad por ID",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/catalogo/actividades/1",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "catalogo", "actividades", "1"]
+								},
+								"description": "PÚBLICO: Ver información detallada de la excursión, punto de encuentro, cupo y coordenadas GPS."
+							},
+							"response": []
+						},
+						{
+							"name": "1.1.3 Consultar Disponibilidad de Cupos",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/catalogo/actividades/1/disponibilidad",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "catalogo", "actividades", "1", "disponibilidad"]
+								},
+								"description": "PÚBLICO / INTERNO: Endpoint liviano que devuelve cupos libres. Consumido por el frontend y por ms-reservas."
+							},
+							"response": []
+						},
+						{
+							"name": "1.1.4 Listar Categorías",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/catalogo/categorias",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "catalogo", "categorias"]
+								},
+								"description": "PÚBLICO: Lista todas las categorías temáticas cargadas en el sistema."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "1.2 Gestión de Excursiones (PROVEEDOR y ADMIN)",
+					"item": [
+						{
+							"name": "1.2.1 Crear Nueva Actividad (POST)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+								},
+								"method": "POST",
+								"header": [{ "key": "Content-Type", "value": "application/json" }],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"titulo\": \"Cabalgata al Atardecer por La Cumbrecita\",\n  \"descripcion\": \"Paseo guiado a caballo atravesando bosques de pinos y arroyos serranos.\",\n  \"categoriaId\": 1,\n  \"dificultad\": \"BAJA\",\n  \"precioBase\": 38000.0,\n  \"cupoMaximo\": 10,\n  \"latitudInicio\": -31.8985,\n  \"longitudInicio\": -64.7738,\n  \"direccionPuntoEncuentro\": \"Entrada Peatonal La Cumbrecita, Córdoba\",\n  \"requiereBuenClima\": true\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/catalogo/actividades",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "catalogo", "actividades"]
+								},
+								"description": "ROL PERMITIDO: PROVEEDOR u ADMIN. Publica una nueva actividad turística en el catálogo general."
+							},
+							"response": []
+						},
+						{
+							"name": "1.2.2 Actualización Completa de Actividad (PUT)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+								},
+								"method": "PUT",
+								"header": [{ "key": "Content-Type", "value": "application/json" }],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"titulo\": \"Ascenso al Cerro Champaquí - Expedición Cumbre\",\n  \"descripcion\": \"Travesía de trekking de 3 días con refugio de montaña incluido.\",\n  \"categoriaId\": 1,\n  \"dificultad\": \"ALTA\",\n  \"precioBase\": 55000.0,\n  \"cupoMaximo\": 20,\n  \"latitudInicio\": -31.9868,\n  \"longitudInicio\": -64.9351,\n  \"direccionPuntoEncuentro\": \"Puesto González, Villa Alpina, Córdoba\",\n  \"requiereBuenClima\": true\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/catalogo/actividades/1",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "catalogo", "actividades", "1"]
+								},
+								"description": "ROL PERMITIDO: PROVEEDOR u ADMIN. Reemplaza todos los datos de la actividad."
+							},
+							"response": []
+						},
+						{
+							"name": "1.2.3 Actualización Parcial de Actividad (PATCH)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+								},
+								"method": "PATCH",
+								"header": [{ "key": "Content-Type", "value": "application/json" }],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"precioBase\": 58000.0,\n  \"cupoMaximo\": 22\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/catalogo/actividades/1",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "catalogo", "actividades", "1"]
+								},
+								"description": "ROL PERMITIDO: PROVEEDOR u ADMIN. Modifica únicamente los campos enviados (ej. precio y cupo)."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "1.3 Operaciones Exclusivas de Administrador (ADMIN)",
+					"item": [
+						{
+							"name": "1.3.1 Baja Lógica de Actividad (DELETE)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+								},
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/catalogo/actividades/1",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "catalogo", "actividades", "1"]
+								},
+								"description": "ROL PERMITIDO: Solo ADMIN. Realiza baja lógica (activa = false) para no romper integridad histórica con reservas existentes."
+							},
+							"response": []
+						},
+						{
+							"name": "1.3.2 Crear Nueva Categoría (POST)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+								},
+								"method": "POST",
+								"header": [{ "key": "Content-Type", "value": "application/json" }],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"nombre\": \"Enoturismo y Bodegas Serranas\",\n  \"descripcion\": \"Degustación de vinos y visitas a viñedos en los valles cordobeses.\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/catalogo/categorias",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "catalogo", "categorias"]
+								},
+								"description": "ROL PERMITIDO: Solo ADMIN. Los proveedores no crean categorías arbitrarias para mantener orden taxonómico."
+							},
+							"response": []
+						},
+						{
+							"name": "1.3.3 Eliminar Categoría (DELETE)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+								},
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/catalogo/categorias/2",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "catalogo", "categorias", "2"]
+								},
+								"description": "ROL PERMITIDO: Solo ADMIN. Valida que la categoría no contenga actividades asignadas."
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "2. Microservicio Reservas (ms-reservas)",
+			"description": "Orquestación de reservas turísticas, cálculo de ruta (OSRM), validación climática (Open-Meteo) y notificaciones (Mailpit).",
+			"item": [
+				{
+					"name": "2.1 Acciones del TURISTA",
+					"item": [
+						{
+							"name": "2.1.1 Crear Reserva Orquestada (TURISTA)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+								},
+								"method": "POST",
+								"header": [{ "key": "Content-Type", "value": "application/json" }],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"actividadId\": 1,\n  \"fechaExcursion\": \"2026-11-20\",\n  \"cantidadPersonas\": 2,\n  \"origenTurista\": {\n    \"latitud\": -31.4135,\n    \"longitud\": -64.18105,\n    \"direccion\": \"Hotel Sheraton Córdoba, Duarte Quirós 1300\"\n  }\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/reservas",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "reservas"]
+								},
+								"description": "ROL PERMITIDO: TURISTA. Orquesta: 1) Valida cupos en ms-catalogo, 2) Calcula trayecto terrestre en geoapi (OSRM), 3) Verifica lluvia/viento en Open-Meteo, 4) Notifica por Mailpit."
+							},
+							"response": []
+						},
+						{
+							"name": "2.1.2 Listar Mis Reservas (TURISTA)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/reservas/mis-reservas",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "reservas", "mis-reservas"]
+								},
+								"description": "ROL PERMITIDO: TURISTA. Extrae el username o sub del JWT y retorna únicamente las reservas que le pertenecen al turista autenticado."
+							},
+							"response": []
+						},
+						{
+							"name": "2.1.3 Cancelar Mi Reserva (TURISTA)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+								},
+								"method": "PUT",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/reservas/101/cancelar",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "reservas", "101", "cancelar"]
+								},
+								"description": "ROL PERMITIDO: TURISTA o ADMIN. El turista puede cancelar su propia reserva con anticipación. Libera cupo y notifica por email."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "2.2 Acciones del PROVEEDOR / OPERADOR",
+					"item": [
+						{
+							"name": "2.2.1 Listar Reservas de Mi Actividad (PROVEEDOR, ADMIN)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/reservas/actividad/1",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "reservas", "actividad", "1"]
+								},
+								"description": "ROL PERMITIDO: PROVEEDOR o ADMIN. Permite al guía/agencia ver el listado de pasajeros anotados en su excursión."
+							},
+							"response": []
+						},
+						{
+							"name": "2.2.2 Confirmar Reserva (PROVEEDOR, ADMIN)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+								},
+								"method": "PUT",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/reservas/101/confirmar",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "reservas", "101", "confirmar"]
+								},
+								"description": "ROL PERMITIDO: PROVEEDOR o ADMIN. Cambia el estado a CONFIRMADA tras chequear pago o cupos. Envía email de voucher al turista."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "2.3 Acciones de Supervisión y ADMIN",
+					"item": [
+						{
+							"name": "2.3.1 Detalle Completo de Reserva por ID (ADMIN, PROVEEDOR, TURISTA)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/reservas/101",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "reservas", "101"]
+								},
+								"description": "Detalle completo con itinerario OSRM y reporte meteorológico. Turista solo ve la suya; Proveedor ve las de sus excursiones; Admin ve cualquiera."
+							},
+							"response": []
+						},
+						{
+							"name": "2.3.2 Listar Todas las Reservas del Sistema (ADMIN)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/reservas",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "reservas"]
+								},
+								"description": "ROL PERMITIDO: Solo ADMIN. Auditoría y visualización global de todas las reservas de la plataforma."
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "3. Microservicio Geoespacial (geoapi / OSRM)",
+			"description": "Cálculo de trayectos, distancias y tiempos de viaje con el motor OSRM local.",
+			"item": [
+				{
+					"name": "3.1 Calcular Distancia y Duración Terrestre (POST)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"origen\": {\n    \"latitud\": -31.4135,\n    \"longitud\": -64.18105\n  },\n  \"destino\": {\n    \"latitud\": -31.9868,\n    \"longitud\": -64.9351\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/geo/rutas/distancia",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "geo", "rutas", "distancia"]
+						},
+						"description": "ROL PERMITIDO: Autenticado (Cualquier rol / Inter-servicio). Calcula distancia exacta en kilómetros y tiempo en minutos."
+					},
+					"response": []
+				},
+				{
+					"name": "3.2 Estimación Rápida de Ruta por Query Params (GET)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/geo/rutas/estimacion?latOrig=-31.4135&lonOrig=-64.18105&latDest=-31.9868&lonDest=-64.9351",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "geo", "rutas", "estimacion"],
+							"query": [
+								{ "key": "latOrig", "value": "-31.4135" },
+								{ "key": "lonOrig", "value": "-64.18105" },
+								{ "key": "latDest", "value": "-31.9868" },
+								{ "key": "lonDest", "value": "-64.9351" }
+							]
+						},
+						"description": "ROL PERMITIDO: Autenticado. Variante GET para integraciones rápidas."
+					},
+					"response": []
+				},
+				{
+					"name": "3.3 Health Check del Contenedor OSRM (ADMIN)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/geo/health-osrm",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "geo", "health-osrm"]
+						},
+						"description": "ROL PERMITIDO: Solo ADMIN. Comprueba que el daemon OSRM responda en Docker."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "4. Pruebas de Seguridad RBAC (Casos de Éxito y Rechazo)",
+			"description": "Peticiones listas para demostrar la seguridad del Gateway y control de acceso en la defensa oral.",
+			"item": [
+				{
+					"name": "4.1 Prueba Sin Token -> Debe Rechazar 401 Unauthorized",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"titulo\": \"Excursión no autorizada\",\n  \"precioBase\": 1000\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/catalogo/actividades",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "catalogo", "actividades"]
+						},
+						"description": "DEMOSTRACIÓN: Petición sin cabecera Authorization: Bearer. El Gateway la frena de inmediato devolviendo HTTP 401 Unauthorized."
+					},
+					"response": []
+				},
+				{
+					"name": "4.2 Prueba Catálogo Público -> Debe Responder 200 OK Sin Token",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/catalogo/actividades",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "catalogo", "actividades"]
+						},
+						"description": "DEMOSTRACIÓN: La consulta pública no exige token, el Gateway deja pasar la petición y responde 200 OK con el listado."
+					},
+					"response": []
+				},
+				{
+					"name": "4.3 Prueba Turista queriendo Borrar Categoría -> Debe Rechazar 403 Forbidden",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token_turista}}", "type": "string" }]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/catalogo/categorias/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "catalogo", "categorias", "1"]
+						},
+						"description": "DEMOSTRACIÓN: Se envía el token de Turista para borrar una categoría. Como no tiene rol ADMIN, el sistema deniega el acceso con HTTP 403 Forbidden."
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
