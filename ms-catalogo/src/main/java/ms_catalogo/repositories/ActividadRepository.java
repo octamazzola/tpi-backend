@@ -23,4 +23,8 @@ public interface ActividadRepository extends JpaRepository<Actividad, Long> {
 
     // 4. Filtrar actividades activas según su nivel de dificultad
     List<Actividad> findByDificultadAndActivaTrue(Dificultad dificultad);
+
+    // 5. Verificar si existen actividades asociadas a una categoría (integridad referencial)
+    boolean existsByCategoriaId(Long categoriaId);
 }
+

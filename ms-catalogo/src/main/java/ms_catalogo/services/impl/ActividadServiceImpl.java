@@ -2,6 +2,7 @@ package ms_catalogo.services.impl;
 
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import ms_catalogo.dtos.ActividadPatchDTO;
 import ms_catalogo.dtos.ActividadRequestDTO;
 import ms_catalogo.dtos.ActividadResponseDTO;
 import ms_catalogo.dtos.DisponibilidadDTO;
@@ -84,6 +85,49 @@ public class ActividadServiceImpl implements ActividadService {
         actividadMapper.updateEntityFromDTO(actividadExistente, dto, categoria);
         Actividad actualizada = actividadRepository.save(actividadExistente);
 
+        return actividadMapper.toResponseDTO(actualizada);
+    }
+
+    @Override
+    @Transactional
+    public ActividadResponseDTO actualizarParcial(Long id, ActividadPatchDTO dto) {
+        Actividad actividad = actividadRepository.findByIdAndActivaTrue(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Actividad no encontrada con ID: " + id));
+
+        if (dto.getTitulo() != null && !dto.getTitulo().isBlank()) {
+            actividad.setTitulo(dto.getTitulo().trim());
+        }
+        if (dto.getDescripcion() != null) {
+            actividad.setDescripcion(dto.getDescripcion().trim());
+        }
+        if (dto.getPrecioBase() != null) {
+            actividad.setPrecioBase(dto.getPrecioBase());
+        }
+        if (dto.getCupoMaximo() != null) {
+            actividad.setCupoMaximo(dto.getCupoMaximo());
+        }
+        if (dto.getDificultad() != null) {
+            actividad.setDificultad(dto.getDificultad());
+        }
+        if (dto.getLatitudInicio() != null) {
+            actividad.setLatitudInicio(dto.getLatitudInicio());
+        }
+        if (dto.getLongitudInicio() != null) {
+            actividad.setLongitudInicio(dto.getLongitudInicio());
+        }
+        if (dto.getDireccionPuntoEncuentro() != null) {
+            actividad.setDireccionPuntoEncuentro(dto.getDireccionPuntoEncuentro().trim());
+        }
+        if (dto.getRequiereBuenClima() != null) {
+            actividad.setRequiereBuenClima(dto.getRequiereBuenClima());
+        }
+        if (dto.getCategoriaId() != null) {
+            Categoria categoria = categoriaRepository.findById(dto.getCategoriaId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Categoría no encontrada con ID: " + dto.getCategoriaId()));
+            actividad.setCategoria(categoria);
+        }
+
+        Actividad actualizada = actividadRepository.save(actividad);
         return actividadMapper.toResponseDTO(actualizada);
     }
 

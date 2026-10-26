@@ -55,8 +55,10 @@ Todas las peticiones externas ingresan a través del **API Gateway** (`http://lo
 | `GET` | `/api/v1/catalogo/categorias` | Público | Lista de categorías de excursiones (Trekking, Navegación, Cabalgata, etc.). |
 | `POST` | `/api/v1/catalogo/actividades` | `OPERADOR`, `ADMIN` | Crea una nueva actividad turística con sus datos geográficos y cupos. |
 | `POST` | `/api/v1/catalogo/categorias` | `ADMIN` | Crea una nueva categoría. |
-| `PUT` | `/api/v1/catalogo/actividades/{id}` | `OPERADOR`, `ADMIN` | Actualiza la información y condiciones de una actividad existente. |
-| `DELETE` | `/api/v1/catalogo/actividades/{id}` | `ADMIN` | Da de baja lógica una actividad turística. |
+| `PUT` | `/api/v1/catalogo/actividades/{id}` | `OPERADOR`, `ADMIN` | Actualiza la información y condiciones de una actividad existente (reemplazo completo). |
+| `PATCH` | `/api/v1/catalogo/actividades/{id}` | `OPERADOR`, `ADMIN` | Modificación parcial de una actividad (precios, cupos, etc.) sin reenviar todos los datos. |
+| `DELETE` | `/api/v1/catalogo/actividades/{id}` | `ADMIN` | Da de baja lógica una actividad turística (`activa = false`). |
+| `DELETE` | `/api/v1/catalogo/categorias/{id}` | `ADMIN` | Elimina una categoría únicamente si no posee actividades asociadas. |
 
 #### Ejemplo Payload `POST /api/v1/catalogo/actividades`:
 ```json

@@ -1,6 +1,7 @@
 package ms_catalogo.services;
 
 import java.util.List;
+import ms_catalogo.dtos.ActividadPatchDTO;
 import ms_catalogo.dtos.ActividadRequestDTO;
 import ms_catalogo.dtos.ActividadResponseDTO;
 import ms_catalogo.dtos.DisponibilidadDTO;
@@ -17,6 +18,8 @@ public interface ActividadService {
     ActividadResponseDTO crear(ActividadRequestDTO dto);
 
     ActividadResponseDTO actualizar(Long id, ActividadRequestDTO dto);
+
+    ActividadResponseDTO actualizarParcial(Long id, ActividadPatchDTO dto);
 
     void darDeBaja(Long id);
 }

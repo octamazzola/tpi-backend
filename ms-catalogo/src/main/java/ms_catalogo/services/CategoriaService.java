@@ -11,4 +11,7 @@ public interface CategoriaService {
     CategoriaResponseDTO obtenerPorId(Long id);
 
     CategoriaResponseDTO crear(CategoriaRequestDTO dto);
+
+    void eliminar(Long id);
 }
+

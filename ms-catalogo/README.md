@@ -65,8 +65,10 @@ ms-catalogo/src/main/java/ms_catalogo/
   * `@Positive` en `precioBase`.
   * `@Min(1)` en `cupoMaximo`.
   * `@NotNull` en categoría, dificultad y coordenadas.
+* **`ActividadPatchDTO`:** DTO para modificaciones parciales (`PATCH`) donde todos los atributos son opcionales y solo se aplican los campos no nulos recibidos.
 * **`ActividadResponseDTO`:** Respuesta detallada con la categoría anidada (`CategoriaResponseDTO`) y el estado de la actividad.
 * **`DisponibilidadDTO`:** DTO liviano para responder estado de cupos a `ms-reservas`.
+* **`ErrorResponseDTO`:** Formato estructurado y estandarizado para respuestas de error de la API (conforme a los lineamientos de cátedra).
 
 ### 3.4. Mappers (`mappers`)
 * **`CategoriaMapper`:** Transforma `CategoriaRequestDTO` a entidad y entidad a `CategoriaResponseDTO`.
@@ -78,13 +80,37 @@ Implementa el patrón **Separated Interface** (SOLID - Inversión de Dependencia
   * `obtenerTodas()` (`@Transactional(readOnly = true)`)
   * `obtenerPorId(Long id)` con validación de existencia (`ResourceNotFoundException`).
   * `crear(CategoriaRequestDTO dto)` con verificación de nombres duplicados (`BadRequestException`).
+  * `eliminar(Long id)`: Elimina la categoría **únicamente si no posee actividades asociadas** (garantía de integridad referencial).
 * **`ActividadService` / `ActividadServiceImpl`:**
   * `listarActividades(...)`: Permite filtrar opcionalmente por categoría, dificultad o precio máximo sobre actividades activas.
   * `obtenerPorId(Long id)`: Busca la actividad o lanza 404 si fue dada de baja.
   * `consultarDisponibilidad(Long id)`: Retorna si hay cupos disponibles.
   * `crear(ActividadRequestDTO dto)`: Valida la existencia previa de la categoría y persiste la excursión.
-  * `actualizar(Long id, ActividadRequestDTO dto)`: Modifica los atributos de la actividad.
-  * `darDeBaja(Long id)`: **Baja lógica** (`activa = false`) para preservar integridad histórica con las reservas existentes.
+  * `actualizar(Long id, ActividadRequestDTO dto)`: Reemplazo total de atributos (`PUT`).
+  * `actualizarParcial(Long id, ActividadPatchDTO dto)`: Modificación puntual de atributos seleccionados (`PATCH`).
+  * `darDeBaja(Long id)`: **Baja lógica** (`activa = false`) para preservar integridad histórica con las reservas existentes (`DELETE`).
+
+### 3.6. Controladores REST (`controllers`)
+* **`CategoriaController` (`/api/v1/catalogo/categorias`):**
+  * `GET /`: Listar todas las categorías.
+  * `GET /{id}`: Obtener categoría por ID.
+  * `POST /`: Crear nueva categoría (`@Valid`).
+  * `DELETE /{id}`: Eliminar categoría sin excursiones dependientes.
+* **`ActividadController` (`/api/v1/catalogo/actividades`):**
+  * `GET /`: Listar actividades con filtros (`categoriaId`, `dificultad`, `precioMax`).
+  * `GET /{id}`: Obtener detalle completo por ID.
+  * `GET /{id}/disponibilidad`: Consulta inter-servicio de cupos para `ms-reservas`.
+  * `POST /`: Crear actividad (`@Valid`).
+  * `PUT /{id}`: Actualización completa (`@Valid`).
+  * `PATCH /{id}`: Actualización parcial de campos (`@Valid`).
+  * `DELETE /{id}`: Baja lógica de la actividad.
+
+### 3.7. Gestión Global de Errores (`exceptions`)
+* **`GlobalExceptionHandler` (`@RestControllerAdvice`):**
+  * Intercepta `ResourceNotFoundException` devolviendo `404 Not Found`.
+  * Intercepta `BadRequestException` devolviendo `400 Bad Request`.
+  * Intercepta errores de Bean Validation (`MethodArgumentNotValidException`) devolviendo `400 Bad Request` con el detalle de campos inválidos.
+  * Intercepta errores genéricos no controlados devolviendo `500 Internal Server Error`.
 
 ---
 
@@ -95,7 +121,7 @@ El microservicio aplica formalmente un conjunto de patrones de diseño clásicos
 | Patrón / Principio | Tipo / Autor | Dónde se aplica en `ms-catalogo` | Beneficio técnico |
 |---|---|---|---|
 | **Layered Architecture** *(Arquitectura en Capas)* | Arquitectónico | División estricta en `controllers`, `services`, `mappers`, `repositories`, `entities`. | Alta cohesión, bajo acoplamiento y separación de incumbencias (SoC). |
-| **Data Transfer Object (DTO)** | Fowler (PoEAA) | Paquete `dtos/` (`ActividadRequestDTO`, `ActividadResponseDTO`, etc.). | Desacopla la API del esquema SQL, previene *over-posting* (seguridad) y aplica Bean Validation. |
+| **Data Transfer Object (DTO)** | Fowler (PoEAA) | Paquete `dtos/` (`ActividadRequestDTO`, `ActividadPatchDTO`, `ErrorResponseDTO`, etc.). | Desacopla la API del esquema SQL, previene *over-posting* (seguridad) y aplica Bean Validation. |
 | **Repository Pattern** | Eric Evans (DDD) / Spring Data | `CategoriaRepository`, `ActividadRepository` (`JpaRepository`). | Aísla la capa de negocio del acceso a datos, simulando una colección de objetos en memoria. |
 | **Service Layer** *(Capa de Servicio)* | Fowler (PoEAA) | `CategoriaService`, `ActividadService` con `@Transactional`. | Centraliza las reglas de negocio, coordinando repositorios y mappers en transacciones atómicas. |
 | **Separated Interface** | Fowler (PoEAA) | Interfaces en `services/` e implementaciones en `services/impl/`. | Cumple con la **D** de SOLID (Inversión de Dependencias). Los controladores solo conocen la interfaz, facilitando mocks para tests. |
@@ -103,6 +129,7 @@ El microservicio aplica formalmente un conjunto de patrones de diseño clásicos
 | **Builder Pattern** | Gang of Four (GoF) / Lombok | `@Builder` en Entidades y DTOs (`Actividad.builder()...build()`). | Construcción fluida, legible e inmutable de objetos, evitando constructores sobrecargados (*telescoping constructor*). |
 | **Dependency Injection (DI / IoC)** | Principio SOLID / Spring | Inyección por constructor mediante `@RequiredArgsConstructor` y campos `final`. | Inmutabilidad de dependencias, desacoplamiento y facilidad para pruebas unitarias. |
 | **Soft Delete** *(Baja Lógica)* | Patrón de Datos | Campo `activa = false` en `Actividad` y métodos `findByActivaTrue()`. | Preserva la integridad referencial histórica con futuras reservas sin destruir registros físicos. |
+| **Exception Shielding / Global Handling** | Patrón Empresarial | `@RestControllerAdvice` con `GlobalExceptionHandler`. | Centraliza el manejo de excepciones, oculta detalles técnicos internos y unifica las respuestas HTTP. |
 
 ---
 
@@ -111,13 +138,12 @@ El microservicio aplica formalmente un conjunto de patrones de diseño clásicos
 | Nivel | Componente | Responsabilidad | Ejemplo en el código |
 |---|---|---|---|
 | **1. Sintáctico / Formato** | DTOs (Bean Validation) | Valida que los datos de entrada sean correctos antes de entrar a la lógica. | `@NotBlank`, `@Positive`, `@Min(1)`, `@Size` |
-| **2. Semántico / Negocio** | Services (`services/impl`) | Valida existencia de relaciones, reglas de negocio y duplicados. | `existsByNombreIgnoreCase`, `findByIdAndActivaTrue` |
+| **2. Semántico / Negocio** | Services (`services/impl`) | Valida existencia de relaciones, reglas de negocio y duplicados. | `existsByNombreIgnoreCase`, `existsByCategoriaId`, `findByIdAndActivaTrue` |
 | **3. Integridad SQL** | Entidades JPA | Garantiza restricciones relacionales en el motor de base de datos. | `@Column(nullable = false)`, `@JoinColumn` |
-
 
 ---
 
-## ⚙️ 5. Configuración y Ejecución
+## ⚙️ 6. Configuración y Ejecución
 
 * **Puerto:** `8081` (acceso directo) / `/api/v1/catalogo` (a través del API Gateway en el puerto `8080`).
 * **Base de datos local:** H2 en memoria (`catalogodb`).
@@ -132,7 +158,7 @@ mvn clean compile -pl ms-catalogo
 
 ---
 
-## 📌 6. Próximos Pasos en el Microservicio
-1. **Controladores REST:** Implementar `CategoriaController` y `ActividadController`.
+## 📌 7. Próximos Pasos en el Microservicio
+1. **Datos de prueba (`DataLoader`):** Sembrar actividades y categorías reales de Córdoba para pruebas rápidas.
 2. **Seguridad:** Configurar validación de tokens JWT emitidos por Keycloak y protección por roles (`ADMIN`, `OPERADOR`, `TURISTA`).
 3. **Contenerización:** Construir el `Dockerfile` de `ms-catalogo` para integrarlo al `docker-compose.yml`.
