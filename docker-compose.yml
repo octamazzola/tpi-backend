@@ -23,6 +23,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
     networks:
       - tpi-network
 
@@ -37,6 +38,7 @@ services:
       - "1025:1025"
       # Puerto 8025: Bandeja de entrada web visual (http://localhost:8025)
       - "8025:8025"
+    restart: unless-stopped
     networks:
       - tpi-network
 
@@ -53,6 +55,7 @@ services:
     ports:
       # Puerto 8180 mapeado al 8080 del contenedor para no colisionar con el Gateway
       - "8180:8080"
+    restart: unless-stopped
     networks:
       - tpi-network
 
@@ -84,6 +87,7 @@ services:
       # ms-catalogo NO arranca hasta que postgres-db pase exitosamente su healthcheck
       postgres-db:
         condition: service_healthy
+    restart: unless-stopped
     networks:
       - tpi-network
 
@@ -111,6 +115,7 @@ services:
     depends_on:
       - ms-catalogo
       - keycloak
+    restart: unless-stopped
     networks:
       - tpi-network
 
