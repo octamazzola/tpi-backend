@@ -1,0 +1,484 @@
+{
+	"info": {
+		"_postman_id": "geoapi-osrm-collection-2026",
+		"name": "GeoAPI (OSRM) - Suite de Verificación TPI",
+		"description": "Colección completa para verificar el Microservicio Geoespacial (geoapi) en puerto 8083 (directo) y puerto 8080 (a través del API Gateway con autenticación JWT de Keycloak y control RBAC). Cumple estrictamente con el formato JSON anidado oficial del proyecto.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "geoapiDirectUrl",
+			"value": "http://localhost:8083",
+			"type": "string"
+		},
+		{
+			"key": "keycloakUrl",
+			"value": "http://localhost:8180",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "token_admin",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "0. Autenticación (Keycloak)",
+			"description": "Permite iniciar sesión para obtener el token JWT que requiere el API Gateway.",
+			"item": [
+				{
+					"name": "0.1 Iniciar Sesión como TURISTA (turista1)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.access_token) {",
+									"    pm.collectionVariables.set('token', jsonData.access_token);",
+									"    console.log('✅ Token de TURISTA guardado en variable {{token}}');",
+									"    pm.test('Status 200 y Token obtenido', function () {",
+									"        pm.response.to.have.status(200);",
+									"        pm.expect(jsonData.access_token).to.be.a('string');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{ "key": "client_id", "value": "tpi-client", "type": "text" },
+								{ "key": "username", "value": "turista1", "type": "text" },
+								{ "key": "password", "value": "1234", "type": "text" },
+								{ "key": "grant_type", "value": "password", "type": "text" }
+							]
+						},
+						"url": {
+							"raw": "{{keycloakUrl}}/realms/tpi-realm/protocol/openid-connect/token",
+							"host": ["{{keycloakUrl}}"],
+							"path": ["realms", "tpi-realm", "protocol", "openid-connect", "token"]
+						},
+						"description": "Obtiene token JWT con rol TURISTA."
+					},
+					"response": []
+				},
+				{
+					"name": "0.2 Iniciar Sesión como ADMIN (admin1)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.access_token) {",
+									"    pm.collectionVariables.set('token_admin', jsonData.access_token);",
+									"    console.log('✅ Token de ADMIN guardado en variable {{token_admin}}');",
+									"    pm.test('Status 200 y Token Admin obtenido', function () {",
+									"        pm.response.to.have.status(200);",
+									"        pm.expect(jsonData.access_token).to.be.a('string');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{ "key": "client_id", "value": "tpi-client", "type": "text" },
+								{ "key": "username", "value": "admin1", "type": "text" },
+								{ "key": "password", "value": "1234", "type": "text" },
+								{ "key": "grant_type", "value": "password", "type": "text" }
+							]
+						},
+						"url": {
+							"raw": "{{keycloakUrl}}/realms/tpi-realm/protocol/openid-connect/token",
+							"host": ["{{keycloakUrl}}"],
+							"path": ["realms", "tpi-realm", "protocol", "openid-connect", "token"]
+						},
+						"description": "Obtiene token JWT con rol ADMIN."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "1. GeoAPI Directo (Puerto 8083)",
+			"description": "Peticiones directas a GeoAPI sin pasar por API Gateway ni requerir autenticación Keycloak.",
+			"item": [
+				{
+					"name": "1.1 POST Calcular Ruta Terrestre (Formato Anidado Oficial)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code es 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"var json = pm.response.json();",
+									"pm.test('Respuesta contiene distancias y tiempos calculados', function () {",
+									"    pm.expect(json.distanciaKm).to.be.above(0);",
+									"    pm.expect(json.duracionMinutos).to.be.above(0);",
+									"    pm.expect(json.duracionFormateada).to.be.a('string');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"origen\": {\n    \"latitud\": -31.41,\n    \"longitud\": -64.18\n  },\n  \"destino\": {\n    \"latitud\": -31.98,\n    \"longitud\": -64.93\n  }\n}"
+						},
+						"url": {
+							"raw": "{{geoapiDirectUrl}}/api/v1/geo/rutas/distancia",
+							"host": ["{{geoapiDirectUrl}}"],
+							"path": ["api", "v1", "geo", "rutas", "distancia"]
+						},
+						"description": "Formato JSON anidado oficial del proyecto. Calcula distancia y tiempo de traslado vía OSRM."
+					},
+					"response": []
+				},
+				{
+					"name": "1.2 GET Estimación Rápida por Query Params",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code es 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"var json = pm.response.json();",
+									"pm.test('Distancia estimada mayor a cero', function () {",
+									"    pm.expect(json.distanciaKm).to.be.above(0);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{geoapiDirectUrl}}/api/v1/geo/rutas/estimacion?latOrig=-31.41&lonOrig=-64.18&latDest=-31.98&lonDest=-64.93",
+							"host": ["{{geoapiDirectUrl}}"],
+							"path": ["api", "v1", "geo", "rutas", "estimacion"],
+							"query": [
+								{ "key": "latOrig", "value": "-31.41" },
+								{ "key": "lonOrig", "value": "-64.18" },
+								{ "key": "latDest", "value": "-31.98" },
+								{ "key": "lonDest", "value": "-64.93" }
+							]
+						},
+						"description": "Estimación liviana por parámetros de URL."
+					},
+					"response": []
+				},
+				{
+					"name": "1.3 GET Health Check del Contenedor OSRM",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code es 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"var json = pm.response.json();",
+									"pm.test('OSRM está UP', function () {",
+									"    pm.expect(json.status).to.eql('UP');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{geoapiDirectUrl}}/api/v1/geo/health-osrm",
+							"host": ["{{geoapiDirectUrl}}"],
+							"path": ["api", "v1", "geo", "health-osrm"]
+						},
+						"description": "Verifica que el daemon Docker de OSRM en el puerto 5000 esté respondiendo."
+					},
+					"response": []
+				},
+				{
+					"name": "1.4 POST Validación Error 400 (Coordenadas Fuera de Rango)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code es 400 Bad Request', function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"origen\": {\n    \"latitud\": 999.0,\n    \"longitud\": -64.18\n  },\n  \"destino\": {\n    \"latitud\": -31.98,\n    \"longitud\": -64.93\n  }\n}"
+						},
+						"url": {
+							"raw": "{{geoapiDirectUrl}}/api/v1/geo/rutas/distancia",
+							"host": ["{{geoapiDirectUrl}}"],
+							"path": ["api", "v1", "geo", "rutas", "distancia"]
+						},
+						"description": "Envía latitud 999.0 (máximo permitido es 90.0). Debe ser rechazado por Bean Validation."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "2. GeoAPI a través de API Gateway (Puerto 8080)",
+			"description": "Peticiones ruteadas por Spring Cloud Gateway con filtro de autenticación JWT y control de acceso RBAC.",
+			"item": [
+				{
+					"name": "2.1 POST Calcular Ruta (Autenticado con Token)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code es 200 OK vía Gateway', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"var json = pm.response.json();",
+									"pm.test('Respuesta ruteada contiene cálculo válido', function () {",
+									"    pm.expect(json.distanciaKm).to.be.above(0);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{ "key": "token", "value": "{{token}}", "type": "string" }
+							]
+						},
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"origen\": {\n    \"latitud\": -31.41,\n    \"longitud\": -64.18\n  },\n  \"destino\": {\n    \"latitud\": -31.98,\n    \"longitud\": -64.93\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/geo/rutas/distancia",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "geo", "rutas", "distancia"]
+						},
+						"description": "Pasa por el Gateway (8080) validando el Bearer Token antes de redirigir a GeoAPI (8083)."
+					},
+					"response": []
+				},
+				{
+					"name": "2.2 GET Estimación Rápida vía Gateway (Autenticado)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code es 200 OK vía Gateway', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{ "key": "token", "value": "{{token}}", "type": "string" }
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/geo/rutas/estimacion?latOrig=-31.41&lonOrig=-64.18&latDest=-31.98&lonDest=-64.93",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "geo", "rutas", "estimacion"],
+							"query": [
+								{ "key": "latOrig", "value": "-31.41" },
+								{ "key": "lonOrig", "value": "-64.18" },
+								{ "key": "latDest", "value": "-31.98" },
+								{ "key": "lonDest", "value": "-64.93" }
+							]
+						},
+						"description": "Consulta GET ruteada a través del Gateway."
+					},
+					"response": []
+				},
+				{
+					"name": "2.3 GET Health Check OSRM con Rol ADMIN (200 OK)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code es 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"var json = pm.response.json();",
+									"pm.test('OSRM status es UP', function () {",
+									"    pm.expect(json.status).to.eql('UP');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{ "key": "token", "value": "{{token_admin}}", "type": "string" }
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/geo/health-osrm",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "geo", "health-osrm"]
+						},
+						"description": "Solo el rol ADMIN tiene acceso a monitorear la salud de OSRM en el Gateway."
+					},
+					"response": []
+				},
+				{
+					"name": "2.4 GET Health Check OSRM con Rol TURISTA (403 Forbidden - RBAC)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code es 403 Forbidden', function () {",
+									"    pm.response.to.have.status(403);",
+									"});",
+									"var json = pm.response.json();",
+									"pm.test('Mensaje descriptivo de acceso denegado', function () {",
+									"    pm.expect(json.error).to.eql('Forbidden');",
+									"    pm.expect(json.message).to.include('Acceso denegado');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{ "key": "token", "value": "{{token}}", "type": "string" }
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/geo/health-osrm",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "geo", "health-osrm"]
+						},
+						"description": "Demuestra la protección RBAC: un Turista no puede auditar la infraestructura y recibe 403 Forbidden."
+					},
+					"response": []
+				},
+				{
+					"name": "2.5 POST Calcular Ruta Sin Token (401 Unauthorized)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code es 401 Unauthorized', function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"var json = pm.response.json();",
+									"pm.test('Mensaje descriptivo de autenticación requerida', function () {",
+									"    pm.expect(json.error).to.eql('Unauthorized');",
+									"    pm.expect(json.message).to.include('No se encuentra autenticado');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"origen\": {\n    \"latitud\": -31.41,\n    \"longitud\": -64.18\n  },\n  \"destino\": {\n    \"latitud\": -31.98,\n    \"longitud\": -64.93\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/geo/rutas/distancia",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "geo", "rutas", "distancia"]
+						},
+						"description": "Petición sin header Authorization. El Gateway la frena con 401 Unauthorized y JSON descriptivo."
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

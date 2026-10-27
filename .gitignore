@@ -1,5 +1,6 @@
 # OSRM data (pesa +4 GB y GitHub solo permite archivos <100MB)
 osrm-data/
+osrm-data.zip
 *.osm.pbf
 
 # Maven & Build

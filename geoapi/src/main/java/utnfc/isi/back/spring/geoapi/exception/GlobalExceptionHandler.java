@@ -24,6 +24,11 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.BAD_REQUEST, detail, request.getRequestURI());
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    ResponseEntity<Map<String, Object>> illegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
+        return error(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI());
+    }
+
     private ResponseEntity<Map<String, Object>> error(HttpStatus status, String message, String path) {
         return ResponseEntity.status(status).body(Map.of(
                 "timestamp", OffsetDateTime.now(),
