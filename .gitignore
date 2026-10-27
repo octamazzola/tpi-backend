@@ -33,6 +33,7 @@ target/
 .DS_Store
 Thumbs.db
 
-# Datos de mapas pesados de OSRM
+# Datos de mapas pesados de OSRM (pesan +4 GB y GitHub solo permite archivos <100MB)
 osrm-data/
 osrm-data.zip
+*.osm.pbf

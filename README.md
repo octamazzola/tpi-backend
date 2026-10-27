@@ -107,52 +107,27 @@ Todas las peticiones externas ingresan a través del **API Gateway** (`http://lo
 }
 ```
 
-#### Ejemplo Respuesta `201 Created`:
-```json
-{
-  "reservaId": 1045,
-  "estado": "CONFIRMADA",
-  "montoTotal": 135000.0,
-  "fechaExcursion": "2026-11-15",
-  "trasladoEstimado": {
-    "distanciaKm": 118.4,
-    "duracionEstimada": "2 hs 15 min",
-    "horaRecomendadaSalida": "06:45 AM"
-  },
-  "pronosticoClima": {
-    "condicion": "Despejado",
-    "temperaturaMax": 24.5,
-    "probabilidadLluvia": 10,
-    "alertaClimatica": false
-  }
-}
-```
-
 ---
 
 ### 🗺️ 3.4. Microservicio Geoespacial (`geoapi`)
-* **Responsabilidad:** Cálculos de rutas, tiempos de viaje terrestre y distancias entre puntos geográficos mediante OSRM.
+* **Responsabilidad:** Cálculos de rutas, tiempos de viaje terrestre y distancias entre puntos geográficos mediante **OSRM (Open Source Routing Machine)** en Docker.
 * **Puerto interno:** `8083` | **Ruta pública Gateway:** `/api/v1/geo`
+* **Swagger UI GeoAPI:** `http://localhost:8083/swagger-ui/index.html`
 
-#### Endpoints ordenados por tipo de petición:
+#### Endpoints:
 
-| Método | Endpoint Gateway | Rol Mínimo | Descripción |
+| Método | Endpoint | Rol Mínimo | Descripción |
 |---|---|---|---|
-| `GET` | `/api/v1/geo/rutas/estimacion` | Autenticado | Versión rápida por QueryParams (`?latOrig=...&lonOrig=...&latDest=...&lonDest=...`). |
-| `GET` | `/api/v1/geo/health-osrm` | `ADMIN` | Chequeo de conectividad y estado del motor local OSRM. |
-| `POST` | `/api/v1/geo/rutas/distancia` | Autenticado | Calcula distancia exacta y tiempo estimado entre origen y destino terrestre. |
+| `GET` | `/api/v1/rutas/health-osrm` | `ADMIN` / Público | Chequeo de conectividad y estado del motor local OSRM. |
+| `POST` | `/api/v1/rutas/distancia` | Autenticado | Calcula distancia exacta y tiempo estimado entre origen y destino terrestre. |
 
-#### Ejemplo Payload `POST /api/v1/geo/rutas/distancia`:
+#### Ejemplo Payload `POST /api/v1/rutas/distancia`:
 ```json
 {
-  "origen": {
-    "latitud": -31.4135,
-    "longitud": -64.18105
-  },
-  "destino": {
-    "latitud": -31.9868,
-    "longitud": -64.9351
-  }
+  "latitudOrigen": -31.4135,
+  "longitudOrigen": -64.18105,
+  "latitudDestino": -31.9868,
+  "longitudDestino": -64.9351
 }
 ```
 
@@ -182,7 +157,7 @@ En cumplimiento estricto con el enunciado (*"Al menos un proceso significativo d
                ▼
         [ms-reservas] (Servicio Orquestador)
          ├── 1. Llama a [ms-catalogo]: GET /actividades/{id} (valida existencia, precio y cupos).
-         ├── 2. Llama a [geoapi]: POST /rutas/distancia (calcula tiempo y distancia de traslado).
+         ├── 2. Llama a [geoapi]: POST /api/v1/rutas/distancia (calcula tiempo y distancia de traslado).
          └── 3. Llama a [Open-Meteo API Externa]: GET /v1/forecast (consulta clima en la fecha).
                │
                ▼  Regla de negocio:
@@ -212,23 +187,36 @@ Biblioteca compartida empaquetada como JAR en `.m2` que contiene:
 ## 🚀 7. Instrucciones para Ejecución Local
 
 ### Paso 1: Levantar infraestructura base (Docker)
+
+#### Base de Datos PostgreSQL y Catálogo:
 ```powershell
-# Motor de rutas OSRM
+wsl docker compose up -d
+```
+
+#### Motor de Rutas OSRM (Datos de Mapa de Argentina):
+> ⚠️ **Importante:** Por limitaciones de tamaño de GitHub (+4 GB), los datos preprocesados del mapa no se versionan.
+1. Descargá el archivo comprimido desde el enlace del equipo:  
+   👉 **[Descargar osrm-data (Google Drive)](https://drive.google.com/file/d/1KaBt7SngvWpoHdeLkjdckU9Nw5lSn9Yi/view?usp=sharing)**
+2. Descomprimí en la raíz del repositorio en la carpeta `osrm-data/`.
+3. Levantá el contenedor OSRM:
+```powershell
 docker compose -f docker-compose.osrm.yml up -d
+```
+Verificá que responda en el puerto `5000`:
+```powershell
+curl.exe "http://localhost:5000/route/v1/driving/-64.18105,-31.4135;-60.6985,-32.9471?overview=false"
 ```
 
 ### Paso 2: Compilar e instalar `common-lib`
 ```powershell
-cd common-lib
-mvn clean install
-cd ..
+mvn clean install -pl common-lib
 ```
 
 ### Paso 3: Ejecutar los microservicios
 ```powershell
 # En terminales separadas o mediante perfiles de Spring Boot:
-mvn -pl geoapi spring-boot:run
 mvn -pl ms-catalogo spring-boot:run
+mvn -pl geoapi spring-boot:run
 mvn -pl ms-reservas spring-boot:run
 mvn -pl api-gateway spring-boot:run
 ```
@@ -237,4 +225,4 @@ mvn -pl api-gateway spring-boot:run
 * **API Gateway (agrupado):** `http://localhost:8080/swagger-ui.html`
 * **Catálogo:** `http://localhost:8081/swagger-ui.html`
 * **Reservas:** `http://localhost:8082/swagger-ui.html`
-* **GeoAPI:** `http://localhost:8083/swagger-ui.html`
+* **GeoAPI:** `http://localhost:8083/swagger-ui/index.html`
