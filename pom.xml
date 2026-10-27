@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+         https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- 1. Heredamos de Spring Boot para estandarizar versiones y plugins -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.3.5</version>
+        <relativePath/> <!-- Busca en repositorios remotos/locales, no en carpetas relativas -->
+    </parent>
+
+    <!-- 2. Coordenadas de nuestro proyecto raíz -->
+    <groupId>ar.edu.utn.frc.bda</groupId>
+    <artifactId>tpi-backend</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    
+    <!-- 3. Tipo POM: significa que es un contenedor de módulos, no produce un JAR -->
+    <packaging>pom</packaging>
+
+    <name>tpi-backend</name>
+    <description>TPI Backend - Sistema de Gestión de Actividades Turísticas y Excursiones</description>
+
+    <!-- 4. Variables globales -->
+    <properties>
+        <java.version>21</java.version>
+        <spring-cloud.version>2023.0.3</spring-cloud.version>
+        <lombok.version>1.18.38</lombok.version>
+    </properties>
+
+    <!-- 5. Los 4 módulos que componen el sistema -->
+    <modules>
+        <module>common-lib</module>
+        <module>ms-catalogo</module>
+        <module>ms-reservas</module>
+        <module>api-gateway</module>
+    </modules>
+
+    <!-- 6. Gestión centralizada de versiones especiales (Spring Cloud para el Gateway) -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <configuration>
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                                <version>${lombok.version}</version>
+                            </path>
+                        </annotationProcessorPaths>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+
+</project>

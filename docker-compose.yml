@@ -1,0 +1,73 @@
+services:
+  # =========================================================================
+  # 1. Base de Datos Relacional: PostgreSQL 16
+  # =========================================================================
+  postgres-db:
+    image: postgres:16-alpine # Imagen oficial minimalista (~30MB)
+    container_name: postgres-db
+    environment:
+      # Variables que Postgres lee en su primer arranque para crear la BD y usuario
+      POSTGRES_DB: catalogodb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      # Formato HOST:CONTENEDOR. Permite conectar DBeaver / pgAdmin desde tu máquina en localhost:5432
+      - "5432:5432"
+    volumes:
+      # Volumen nombrado persistente: los datos se guardan en el disco del host
+      # para no perder las tablas si se destruye o recrea el contenedor
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # Evita race conditions: verifica cada 5s si el motor ya acepta conexiones reales
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d catalogodb" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tpi-network
+
+  # =========================================================================
+  # 2. Microservicio de Catálogo (Spring Boot 3.3.5 / Java 21)
+  # =========================================================================
+  ms-catalogo:
+    container_name: ms-catalogo
+    build:
+      context: ./ms-catalogo # Carpeta donde reside el proyecto
+      dockerfile: Dockerfile  # Receta para construir la imagen JRE 21 Alpine
+    ports:
+      # Permite acceder a Swagger UI en http://localhost:8081/swagger-ui.html
+      - "8081:8081"
+    environment:
+      # Inyección de configuración (12-Factor App): sobreescribe application.properties
+      SPRING_APPLICATION_NAME: ms-catalogo
+      SERVER_PORT: 8081
+      # Conexión JDBC: el host 'postgres-db' se resuelve por el DNS interno de Docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/catalogodb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      # Dialecto para que Hibernate genere DDL y SQL óptimo para Postgres
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_H2_CONSOLE_ENABLED: "false" # Apagamos H2 en este entorno
+    depends_on:
+      # ms-catalogo NO arranca hasta que postgres-db pase exitosamente su healthcheck
+      postgres-db:
+        condition: service_healthy
+    networks:
+      - tpi-network
+
+# =========================================================================
+# Volúmenes administrados por Docker
+# =========================================================================
+volumes:
+  # Espacio en disco persistente fuera del ciclo de vida de los contenedores
+  postgres-data:
+
+# =========================================================================
+# Red virtual privada (Bridge Network)
+# =========================================================================
+networks:
+  # Switch virtual donde los contenedores se comunican entre sí por nombre de servicio
+  tpi-network:
+    driver: bridge
