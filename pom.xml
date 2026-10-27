@@ -31,11 +31,12 @@
         <lombok.version>1.18.38</lombok.version>
     </properties>
 
-    <!-- 5. Los 4 módulos que componen el sistema -->
+    <!-- 5. Los módulos que componen el sistema -->
     <modules>
         <module>common-lib</module>
         <module>ms-catalogo</module>
         <module>ms-reservas</module>
+        <module>geoapi</module>
         <module>api-gateway</module>
     </modules>
 
