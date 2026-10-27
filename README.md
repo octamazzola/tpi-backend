@@ -97,3 +97,24 @@ Para que el microservicio esté 100% completo y listo para integrarse con `ms-ca
 4. **Controlador REST (`RutaController`)**:
    * Endpoint documentado (ej. `POST /api/v1/rutas/distancia` o `GET /api/v1/rutas/distancia`).
    * Anotaciones Swagger/OpenAPI (`@Tag`, `@Operation`, `@ApiResponse`) para validación y pruebas directas desde la UI web.
+---
+
+## Implementación completada
+
+El microservicio `geoapi` ya incluye los componentes indicados en este README:
+
+* `POST /api/v1/rutas/distancia` recibe las coordenadas en JSON y valida los rangos de latitud y longitud.
+* `OsrmService` consulta OSRM usando el orden requerido por el motor: `longitud,latitud`.
+* La respuesta contiene distancia en metros y kilómetros, duración en segundos y minutos, y el texto formateado.
+* Los errores de validación responden `400`; OSRM no disponible o sin ruta responde `502` con un detalle JSON.
+* La URL de OSRM y el puerto son configurables mediante `OSRM_BASE_URL` y `SERVER_PORT`.
+
+### Ejemplo de uso
+
+```powershell
+curl.exe -X POST "http://localhost:8083/api/v1/rutas/distancia" `
+  -H "Content-Type: application/json" `
+  -d '{"latitudOrigen":-31.4135,"longitudOrigen":-64.18105,"latitudDestino":-32.9471,"longitudDestino":-60.6985}'
+```
+
+La documentación interactiva queda disponible en `http://localhost:8083/swagger-ui/index.html`.
