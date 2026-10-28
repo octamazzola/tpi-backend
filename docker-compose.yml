@@ -92,6 +92,41 @@ services:
       - tpi-network
 
   # =========================================================================
+  # Microservicio de Reservas (Spring Boot 3.3.5 / Java 21)
+  # =========================================================================
+  ms-reservas:
+    container_name: ms-reservas
+    build:
+      context: ./ms-reservas
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_APPLICATION_NAME: ms-reservas
+      SERVER_PORT: 8082
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/reservasdb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_H2_CONSOLE_ENABLED: "false"
+      MS_CATALOGO_URL: http://ms-catalogo:8081/api/v1/catalogo
+      GEOAPI_URL: http://geoapi:8083/api/v1/geo
+      SPRING_MAIL_HOST: mailpit
+      SPRING_MAIL_PORT: 1025
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      ms-catalogo:
+        condition: service_started
+      mailpit:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - tpi-network
+
+  # =========================================================================
   # 5. API Gateway (Spring Cloud Gateway / Puerto 8080)
   # =========================================================================
   api-gateway:
