@@ -8,6 +8,7 @@ gitignore/
 !**/README.md
 !GUIA-AUTENTICACION-KEYCLOAK-POSTMAN.md
 !ROLES-Y-PERMISOS-RBAC.md
+!MS_RESERVAS.md
 
 # Maven - archivos de compilación y empaquetado
 target/
