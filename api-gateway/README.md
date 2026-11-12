@@ -12,7 +12,8 @@ El componente `api-gateway` es el **punto único de entrada (Single Point of Con
 * **Enrutamiento Reactivo:** Basado en **Spring Cloud Gateway (WebFlux)** y configurado mediante Java DSL (`RouteLocatorBuilder`).
 * **Abstracción de Topología:** Los clientes externos no necesitan conocer los puertos internos (`8081`, `8082`, `8083`) ni las IPs de los microservicios; todo se consume a través del puerto `8080`.
 * **Soporte Global de CORS:** Habilita el consumo seguro desde navegadores web para cualquier origen frontend.
-* **Preparado para Seguridad (Keycloak):** Punto central donde se integrará el filtro de validación de tokens JWT en la siguiente fase.
+* **Security Filter (Keycloak):** valida los JWT, aplica RBAC por ruta y propaga la identidad del usuario a los microservicios (ver sección 4).
+* **Swagger UI agrupado:** `http://localhost:8080/swagger-ui.html` muestra la documentación OpenAPI de los tres microservicios.
 
 ---
 
@@ -23,6 +24,7 @@ El componente `api-gateway` es el **punto único de entrada (Single Point of Con
 | `/api/v1/catalogo/**` | `ms-catalogo` | `MS_CATALOGO_URL` | `http://localhost:8081` |
 | `/api/v1/reservas/**` | `ms-reservas` | `MS_RESERVAS_URL` | `http://localhost:8082` |
 | `/api/v1/geo/**` | `geoapi` (OSRM) | `GEOAPI_URL` | `http://localhost:8083` |
+| `/api-docs/catalogo` · `/api-docs/reservas` · `/api-docs/geoapi` | `/v3/api-docs` de cada servicio | — | (para el Swagger UI agrupado) |
 
 ---
 
@@ -45,7 +47,15 @@ El Gateway actúa como **OAuth2 Resource Server** validando tokens JWT stateless
   * `DELETE /api/v1/catalogo/actividades/**` $\rightarrow$ Exclusivo `ROLE_ADMIN` (baja lógica).
   * `POST/DELETE /api/v1/catalogo/categorias/**` $\rightarrow$ Exclusivo `ROLE_ADMIN`.
   * `POST /api/v1/reservas` $\rightarrow$ Requiere `ROLE_TURISTA` o `ROLE_ADMIN`.
-  * `/api/v1/geo/**` $\rightarrow$ Requiere usuario autenticado.
+  * `GET /api/v1/reservas` y `POST /api/v1/reservas/revalidaciones` $\rightarrow$ Exclusivo `ROLE_ADMIN`.
+  * `PUT /api/v1/reservas/*/confirmar` $\rightarrow$ `ROLE_OPERADOR` o `ROLE_ADMIN`; `PUT .../cancelar` $\rightarrow$ `ROLE_TURISTA` o `ROLE_ADMIN`.
+  * `GET /api/v1/geo/health-osrm` $\rightarrow$ Exclusivo `ROLE_ADMIN`; resto de `/api/v1/geo/**` $\rightarrow$ usuario autenticado.
+  * Swagger UI y `/api-docs/**` $\rightarrow$ Público (solo lectura de contratos).
+
+### Propagación de identidad (`UserHeadersFilter`)
+Filtro global que elimina los headers `X-User-*` enviados por el cliente y los vuelve a armar desde el JWT validado:
+`X-User-Id` (`sub`), `X-User-Name` (`preferred_username`), `X-User-Email` (`email`) y `X-User-Roles`.
+El contrato de nombres vive en `common-lib` (`UserHeaders`), compartido con los microservicios.
 
 ---
 
@@ -55,9 +65,8 @@ El servicio cuenta con su propio [`api-gateway/Dockerfile`](file:///c:/Users/RYZ
 
 ### Ejecución en conjunto:
 ```powershell
-# 1. Empaquetar los módulos
-mvn clean package -DskipTests
-
-# 2. Levantar la infraestructura completa con Docker Compose
+# Desde la raíz: los Dockerfiles multi-stage compilan cada módulo dentro del contenedor
 docker compose up --build -d
 ```
+En Docker, el Gateway es el **único** servicio de negocio con puerto publicado (`8080`): los microservicios
+quedan dentro de la red `tpi-network` (trusted zone).

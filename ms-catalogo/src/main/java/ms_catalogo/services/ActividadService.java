@@ -9,7 +9,7 @@ import ms_catalogo.entities.Dificultad;
 
 public interface ActividadService {
 
-    List<ActividadResponseDTO> listarActividades(Long categoriaId, Dificultad dificultad, Double precioMax);
+    List<ActividadResponseDTO> listarActividades(Long categoriaId, Dificultad dificultad, Double precioMax, String ciudad);
 
     ActividadResponseDTO obtenerPorId(Long id);
 

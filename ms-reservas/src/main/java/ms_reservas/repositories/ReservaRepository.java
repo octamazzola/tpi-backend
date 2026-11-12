@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -14,9 +15,15 @@ import java.util.List;
  */
 public interface ReservaRepository extends JpaRepository<Reserva, Long> {
 
-    List<Reserva> findByTuristaId(String turistaId);
+    /** Estados que ocupan cupo y que la revalidación debe vigilar. */
+    List<EstadoReserva> ESTADOS_ACTIVOS = List.of(EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA);
 
-    List<Reserva> findByActividadId(Long actividadId);
+    List<Reserva> findByTuristaIdOrderByFechaExcursionDesc(String turistaId);
+
+    List<Reserva> findByActividadIdOrderByFechaExcursionAsc(Long actividadId);
+
+    /** Reservas que siguen vigentes (pendientes o confirmadas) desde una fecha en adelante. */
+    List<Reserva> findByEstadoInAndFechaExcursionGreaterThanEqual(Collection<EstadoReserva> estados, LocalDate desde);
 
     /**
      * Suma las personas ya reservadas para una actividad en una fecha, considerando

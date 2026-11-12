@@ -1,4 +1,4 @@
-package ms_catalogo.dtos;
+package ar.edu.utn.frc.bda.common.dtos;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
@@ -10,8 +10,9 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
- * DTO estándar para respuestas de error de la API (conforme a las pautas de cátedra).
- * Provee una estructura unificada y predecible para el frontend y clientes HTTP.
+ * Estructura unificada de error para todos los microservicios:
+ * { "timestamp", "status", "error", "message", "path", "validaciones" }.
+ * Usa los mismos nombres de campo que las respuestas 401/403 del api-gateway y que geoapi.
  */
 @Data
 @NoArgsConstructor
@@ -25,7 +26,7 @@ public class ErrorResponseDTO {
     private String error;
     private String message;
     private String path;
-    
-    // Contiene los errores de validación de Bean Validation por campo (ej: "titulo": "no puede estar vacío")
+
+    // Errores de Bean Validation por campo (ej: "titulo": "no puede estar vacío")
     private Map<String, String> validaciones;
 }

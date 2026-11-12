@@ -36,7 +36,7 @@ El sistema implementa una arquitectura de seguridad **Zero-Trust en el borde (Ed
 * **Propósito:** Descubrir actividades turísticas y consultar información para decidir una compra.
 * **Qué puede hacer:**
   * Ver el catálogo completo de excursiones.
-  * Aplicar filtros de búsqueda por dificultad (`BAJA`, `MEDIA`, `ALTA`, `EXPERTO`), categoría y precio máximo.
+  * Aplicar filtros de búsqueda por dificultad (`BAJA`, `MEDIA`, `ALTA`), categoría, precio máximo y ciudad.
   * Ver el detalle técnico de una actividad (coordenadas GPS de encuentro, itinerario, equipamiento sugerido).
   * Consultar si quedan cupos disponibles para una fecha o actividad.
   * Listar las categorías existentes.
@@ -105,7 +105,8 @@ El sistema implementa una arquitectura de seguridad **Zero-Trust en el borde (Ed
 | **ms-reservas** | `GET` | `/api/v1/reservas/actividad/{id}` | ❌ | ❌ | ✅ | ✅ | Listado de inscriptos para el guía u operador. |
 | **ms-reservas** | `PUT` | `/api/v1/reservas/{id}/confirmar` | ❌ | ❌ | ✅ | ✅ | Confirma la reserva y emite voucher vía Mailpit. |
 | **ms-reservas** | `PUT` | `/api/v1/reservas/{id}/cancelar` | ❌ | ✅ *(Propia)* | ❌ | ✅ | Cancelación voluntaria y liberación de cupos. |
-| **ms-reservas** | `/api/v1/reservas` | `GET` | ❌ | ❌ | ❌ | ✅ | Auditoría y control global de reservas del sistema. |
+| **ms-reservas** | `GET` | `/api/v1/reservas` | ❌ | ❌ | ❌ | ✅ | Auditoría y control global de reservas del sistema. |
+| **ms-reservas** | `POST` | `/api/v1/reservas/revalidaciones` | ❌ | ❌ | ❌ | ✅ | Revalidación manual de reservas vigentes (también corre sola cada hora). |
 | **geoapi** | `POST` | `/api/v1/geo/rutas/distancia` | ❌ | ✅ | ✅ | ✅ | Cálculo terrestre de distancia (km) y tiempo (min). |
 | **geoapi** | `GET` | `/api/v1/geo/rutas/estimacion` | ❌ | ✅ | ✅ | ✅ | Estimación rápida de viaje mediante parámetros URL. |
 | **geoapi** | `GET` | `/api/v1/geo/health-osrm` | ❌ | ❌ | ❌ | ✅ | Monitoreo del contenedor Docker del motor OSRM. |
@@ -127,22 +128,19 @@ Cuando un usuario interactúa con la API, el sistema responde siguiendo estricta
 
 ## 🧪 5. Estructura de Pruebas en Postman (`tpi_postman_collection.json`)
 
-Para probar y defender esta arquitectura, se diseñó la colección con scripts automatizados de extracción de tokens:
+La colección se corre completa con el *Collection Runner*. Cada request lleva su propio token
+(`{{token_turista}}`, `{{token_turista2}}`, `{{token_operador}}`, `{{token_admin}}`), así que no hace falta
+re-loguearse para cambiar de rol, y cada request valida automáticamente el código HTTP esperado.
 
-### Paso 1: Obtener el Token deseado
-En la carpeta **`0. Autenticación y Obtención de Tokens (Keycloak)`**:
-* Ejecutar **`0.1 Iniciar Sesión como TURISTA`**: Autentica a `turista1` y guarda su token en la variable `{{token}}`.
-* Ejecutar **`0.2 Iniciar Sesión como PROVEEDOR`**: Autentica a `operador1` y actualiza la variable `{{token}}`.
-* Ejecutar **`0.3 Iniciar Sesión como ADMINISTRADOR`**: Autentica a `admin1` y actualiza la variable `{{token}}`.
-
-### Paso 2: Ejecutar los Endpoints de Negocio
-Todos los endpoints en las carpetas `1. Catálogo`, `2. Reservas` y `3. GeoAPI` utilizan automáticamente `{{token}}`. No es necesario copiar ni pegar cadenas de texto manualmente.
-
-### Paso 3: Demostración de Seguridad en la Defensa
-En la carpeta **`4. Pruebas de Seguridad RBAC`**:
-* **4.1 Prueba Sin Token:** Demuestra que al intentar crear una excursión sin token, el Gateway responde inmediatamente `401 Unauthorized`.
-* **4.2 Prueba Catálogo Público:** Demuestra que las consultas `GET` de catálogo funcionan sin autenticación (`200 OK`).
-* **4.3 Prueba de Rol Inadecuado:** Demuestra que si un turista intenta borrar una categoría o crear actividades, el sistema protege la operación.
+* **00 · Autenticación (Keycloak):** obtiene los 4 tokens (usuarios importados con `keycloak/tpi-realm.json`).
+* **01 a 06:** catálogo público, gestión del catálogo, proceso principal de reservas, reglas de negocio
+  negativas, revalidación y GeoAPI.
+* **07 · Seguridad: RBAC y trusted zone** (para la defensa):
+  * Sin token → `401`; token inválido → `401`; catálogo público sin token → `200`.
+  * Turista crea actividad o elimina categoría → `403`; operador crea categoría → `403`.
+  * Turista confirma una reserva o lista todas → `403`; operador ejecuta la revalidación → `403`.
+  * Un turista que envía `X-User-Name: turista2` igual recibe **sus** reservas: el Gateway pisa el header con el dato del JWT.
+* En la carpeta **04**, `turista2` intenta ver y cancelar una reserva de `turista1` → `403` (control de propiedad en `ms-reservas`).
 
 ---
 
@@ -152,7 +150,7 @@ En la carpeta **`4. Pruebas de Seguridad RBAC`**:
    * **Respuesta:** Para centralizar la seguridad en el borde (*Edge Server*). Si cada microservicio tuviera que implementar su propio filtro de seguridad contra Keycloak, tendríamos código duplicado, mayor latencia y acoplamiento innecesario. Los microservicios internos confían en el Gateway y procesan lógica pura de negocio.
 
 2. **¿Cómo sabe el microservicio de reservas qué turista está realizando la compra?**  
-   * **Respuesta:** El Gateway valida el token JWT emitido por Keycloak y extrae el identificador del usuario (`sub` o `preferred_username`). Este dato se propaga hacia el microservicio interno en una cabecera HTTP segura, evitando que el cliente pueda falsear su identidad en el cuerpo JSON.
+   * **Respuesta:** El filtro global `UserHeadersFilter` del Gateway toma el JWT ya validado y reenvía `X-User-Id` (`sub`), `X-User-Name` (`preferred_username`), `X-User-Email` y `X-User-Roles`. Antes elimina cualquier `X-User-*` que haya mandado el cliente, así que no se puede falsificar. Como los microservicios no publican puertos fuera de la red de Docker (trusted zone), la única forma de llegar a ellos es a través del Gateway.
 
 3. **¿Por qué el borrado de actividades es una baja lógica y no física?**  
    * **Respuesta:** Para preservar la integridad referencial y el historial financiero y legal. Si elimináramos físicamente una actividad de la base de datos con `DELETE FROM actividades`, todas las reservas históricas asociadas quedarían huérfanas o fallarían por restricción de clave foránea (*Foreign Key*). La baja lógica (`activa = false`) oculta la excursión para nuevas reservas pero mantiene intacto el historial.

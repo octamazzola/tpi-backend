@@ -31,7 +31,8 @@ ms-catalogo/src/main/java/ms_catalogo/
 ├── exceptions/         # Excepciones de negocio HTTP
 ├── services/           # Interfaces de negocio (Patrón Separated Interface)
 │   └── impl/           # Implementaciones con lógica de negocio y @Transactional
-└── controllers/        # Controladores REST (@RestController) - Próxima fase
+├── controllers/        # Controladores REST (@RestController)
+└── config/             # DataLoader con actividades reales de Córdoba
 ```
 
 ---
@@ -44,8 +45,10 @@ ms-catalogo/src/main/java/ms_catalogo/
 * **`Actividad` (`@Table(name = "actividades")`):**
   * Relación `@ManyToOne` hacia `Categoria` (clave foránea `categoria_id`).
   * `@Enumerated(EnumType.STRING)` para `Dificultad`.
-  * Punto geográfico de encuentro (`latitudInicio`, `longitudInicio`, `direccionPuntoEncuentro`).
+  * Punto geográfico de encuentro (`latitudInicio`, `longitudInicio`, `direccionPuntoEncuentro`) y `ciudad` (localidad, obligatoria al crear; se usa para el filtro).
   * Bandera `requiereBuenClima` (para integración con API climática).
+  * Restricciones de participación opcionales: `edadMinima` / `edadMaxima` (las valida `ms-reservas` con la fecha de nacimiento de cada participante).
+  * Temporada opcional: `mesInicioTemporada` / `mesFinTemporada` (1-12; admite temporadas que cruzan el año, ej. 9 a 4 = septiembre a abril).
   * Campo `activa` inicializado en `true` (soporta la baja lógica).
 
 ### 3.2. Repositorios (`repositories`)
@@ -82,7 +85,7 @@ Implementa el patrón **Separated Interface** (SOLID - Inversión de Dependencia
   * `crear(CategoriaRequestDTO dto)` con verificación de nombres duplicados (`BadRequestException`).
   * `eliminar(Long id)`: Elimina la categoría **únicamente si no posee actividades asociadas** (garantía de integridad referencial).
 * **`ActividadService` / `ActividadServiceImpl`:**
-  * `listarActividades(...)`: Permite filtrar opcionalmente por categoría, dificultad o precio máximo sobre actividades activas.
+  * `listarActividades(...)`: Permite filtrar opcionalmente por categoría, dificultad, precio máximo o ciudad sobre actividades activas. La ciudad se compara con `TextoNormalizado`: coincidencia parcial, sin distinguir mayúsculas ni tildes (`carlos paz`, `CÓRDOBA` y `cordoba` funcionan). Si no hay coincidencias se responde `200` con `[]`: una búsqueda vacía no es un error.
   * `obtenerPorId(Long id)`: Busca la actividad o lanza 404 si fue dada de baja.
   * `consultarDisponibilidad(Long id)`: Retorna si hay cupos disponibles.
   * `crear(ActividadRequestDTO dto)`: Valida la existencia previa de la categoría y persiste la excursión.
@@ -97,7 +100,7 @@ Implementa el patrón **Separated Interface** (SOLID - Inversión de Dependencia
   * `POST /`: Crear nueva categoría (`@Valid`).
   * `DELETE /{id}`: Eliminar categoría sin excursiones dependientes.
 * **`ActividadController` (`/api/v1/catalogo/actividades`):**
-  * `GET /`: Listar actividades con filtros (`categoriaId`, `dificultad`, `precioMax`).
+  * `GET /`: Listar actividades con filtros (`categoriaId`, `dificultad`, `precioMax`, `ciudad`).
   * `GET /{id}`: Obtener detalle completo por ID.
   * `GET /{id}/disponibilidad`: Consulta inter-servicio de cupos para `ms-reservas`.
   * `POST /`: Crear actividad (`@Valid`).
@@ -105,12 +108,12 @@ Implementa el patrón **Separated Interface** (SOLID - Inversión de Dependencia
   * `PATCH /{id}`: Actualización parcial de campos (`@Valid`).
   * `DELETE /{id}`: Baja lógica de la actividad.
 
-### 3.7. Gestión Global de Errores (`exceptions`)
-* **`GlobalExceptionHandler` (`@RestControllerAdvice`):**
-  * Intercepta `ResourceNotFoundException` devolviendo `404 Not Found`.
-  * Intercepta `BadRequestException` devolviendo `400 Bad Request`.
-  * Intercepta errores de Bean Validation (`MethodArgumentNotValidException`) devolviendo `400 Bad Request` con el detalle de campos inválidos.
-  * Intercepta errores genéricos no controlados devolviendo `500 Internal Server Error`.
+### 3.7. Gestión Global de Errores (`common-lib`)
+Las excepciones (`ResourceNotFoundException`, `BadRequestException`, `ConflictException`), el `ErrorResponseDTO`
+y el `GlobalExceptionHandler` vienen de **`common-lib`** y se registran automáticamente:
+* `404 Not Found` (recurso inexistente o dado de baja), `400 Bad Request` (reglas de negocio, Bean Validation,
+  edad mínima > máxima, temporada incompleta), `409 Conflict` (categoría con actividades asociadas) y `500`
+  para errores no controlados, sin exponer el stacktrace.
 
 ---
 
@@ -149,7 +152,7 @@ El microservicio aplica formalmente un conjunto de patrones de diseño clásicos
 * **Base de datos local:** H2 en memoria (`catalogodb`).
   * **Consola H2 Web:** `http://localhost:8081/h2-console`
   * **JDBC URL:** `jdbc:h2:mem:catalogodb` | **User:** `sa` | **Password:** *(vacío)*
-* **Documentación OpenAPI / Swagger:** `http://localhost:8081/swagger-ui.html`
+* **Documentación OpenAPI / Swagger:** en Docker, vía Gateway en `http://localhost:8080/swagger-ui.html` (el puerto `8081` no se publica); en local, `http://localhost:8081/swagger-ui.html`.
 
 ### Compilación y verificación:
 ```powershell
@@ -158,7 +161,12 @@ mvn clean compile -pl ms-catalogo
 
 ---
 
-## 📌 7. Próximos Pasos en el Microservicio
-1. **Datos de prueba (`DataLoader`):** Sembrar actividades y categorías reales de Córdoba para pruebas rápidas.
-2. **Seguridad:** Configurar validación de tokens JWT emitidos por Keycloak y protección por roles (`ADMIN`, `OPERADOR`, `TURISTA`).
-3. **Contenerización:** Construir el `Dockerfile` de `ms-catalogo` para integrarlo al `docker-compose.yml`.
+## 📌 7. Datos semilla (`DataLoader`)
+| ID | Actividad | Ciudad | Restricciones |
+|---|---|---|---|
+| 1 | Ascenso al Cerro Champaquí | Villa Alpina | 14 a 65 años, requiere buen clima |
+| 2 | Paseo Náutico en Dique San Roque | Villa Carlos Paz | Temporada septiembre a abril, requiere buen clima |
+| 3 | Cabalgata al Peñón del Águila | La Cumbrecita | Sin restricciones, no depende del clima |
+| 4 | Escalada y Rappel en Los Gigantes | Tanti | +18 años, temporada marzo a noviembre, requiere buen clima |
+
+Si la base ya tenía actividades creadas antes de existir el campo `ciudad`, el `DataLoader` lo completa al arrancar con la localidad de la dirección (anteúltimo tramo: `"Costanera Centro, Villa Carlos Paz, Córdoba"` → `Villa Carlos Paz`).

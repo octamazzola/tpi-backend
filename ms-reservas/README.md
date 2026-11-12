@@ -1,230 +1,211 @@
 # 🎫 Microservicio de Reservas (`ms-reservas`)
 **Backend de Aplicaciones — UTN FRC (2026)**  
 **Dominio:** Sistema de Gestión de Actividades Turísticas y Excursiones  
-**Tecnología:** Java 21, Spring Boot 3.3.5, Spring Data JPA, Spring Mail, RestClient, Docker
+**Tecnología:** Java 21, Spring Boot 3.3.5, Spring Data JPA, Spring Mail, RestClient, `@Scheduled`, Docker
 
 ---
 
 ## 📋 1. Descripción y Responsabilidad
 
-El microservicio `ms-reservas` es el **orquestador central de negocio** del sistema. Es el encargado de gestionar el ciclo de vida completo de las reservas de excursiones, coordinando la interacción sincrónica y asincrónica entre los servicios del ecosistema y ejecutando las reglas clave de negocio:
+`ms-reservas` es el **orquestador central del negocio**. Gestiona el ciclo de vida completo de las reservas y decide, en el momento de reservar **y después**, si una reserva sigue siendo viable.
 
-### Responsabilidades Clave:
-* **Orquestación del Proceso Principal:** Al recibir una solicitud de reserva, valida la existencia y disponibilidad de cupos en `ms-catalogo`, consulta el pronóstico meteorológico en **Open-Meteo**, calcula el tiempo de viaje y la distancia terrestre mediante `geoapi` (OSRM), y despacha notificaciones por correo electrónico a través de **Mailpit**.
-* **Gestión de Estados del Negocio:** Administra el ciclo de vida de la reserva (`PENDIENTE`, `CONFIRMADA`, `CANCELADA`, `RECHAZADA_POR_CLIMA`), garantizando que toda reserva nueva inicie en `PENDIENTE` para su posterior confirmación por el operador turístico tras verificar el pago o 48 hs antes de la salida.
-* **Resiliencia y Tolerancia a Fallos (Fallback):** Si la API externa de Open-Meteo sufre un timeout o caída de conectividad, el servicio aplica un mecanismo de degradación controlada continuando la reserva sin alerta climática en lugar de fallar. Asimismo, fallos temporales en el servidor SMTP no revierten la transacción de la reserva.
-* **Separated Interface (SOLID - DIP):** Implementa desacoplamiento estricto separando contratos abstractos (`ReservaService`, `EmailService`) de sus implementaciones concretas.
+### Responsabilidades clave
+* **Orquestación del proceso principal:** valida la actividad y sus restricciones en `ms-catalogo`, consulta el pronóstico en **Open-Meteo**, calcula el traslado con `geoapi` (OSRM) y notifica por correo (**Mailpit**).
+* **Participantes:** cada reserva registra a las personas que asisten (nombre, DNI, fecha de nacimiento y teléfono). La cantidad de personas es la cantidad de participantes.
+* **Restricciones de participación:** edad mínima/máxima de cada participante el día de la excursión y temporada de la actividad.
+* **Revalidación de reservas:** un proceso programado (cada hora) vuelve a evaluar las reservas vigentes: baja de la actividad, cambio de temporada, reducción de cupo, pronóstico adverso y la **regla de 48 hs**.
+* **Estados y transiciones (RN05):** `PENDIENTE`, `CONFIRMADA`, `CANCELADA`, `RECHAZADA_POR_CLIMA`, con el campo `motivoEstado` que explica cada cambio.
+* **Resiliencia:** si Open-Meteo, geoapi o el SMTP fallan, la reserva continúa en modo degradado. Si `ms-catalogo` no responde: al crear se devuelve `502`; al revalidar, esa actividad no se toca.
+* **Separated Interface (SOLID - DIP):** contratos (`ReservaService`, `RevalidacionService`, `EmailService`) separados de sus implementaciones.
 
 ---
 
-## 🔄 2. Flujo de Orquestación Inter-Servicio
+## 🔄 2. Proceso principal: `POST /api/v1/reservas`
 
 ```
-                      [Turista / Cliente]
-                               │
-                               ▼ POST /api/v1/reservas
-                     ┌───────────────────┐
-                     │    ms-reservas    │ (Servicio Orquestador - 8082)
-                     └─┬───────┬───────┬─┘
-                       │       │       │
-       1. Consulta     │       │       │ 3. Valida clima
-          actividad    │       │       │    (si requiereBuenClima)
-          y cupos      ▼       │       ▼
-               ┌─────────────┐ │   ┌───────────────────────┐
-               │ ms-catalogo │ │   │ Open-Meteo (Internet) │
-               │ (Port 8081) │ │   │ API Pública Externa   │
-               └─────────────┘ │   └───────────────────────┘
-                               │
-                               │ 2. Calcula ruta y traslado
-                               ▼    (Origen turista -> Destino actividad)
-                       ┌──────────────┐
-                       │    geoapi    │
-                       │ (OSRM Local) │
-                       └──────────────┘
+[Turista] ──► [api-gateway] valida JWT + rol, propaga X-User-* ──► [ms-reservas]
+                                                                     │
+   1. GET actividad ─────────────────────────────────────────────────┼──► ms-catalogo
+   2. temporada + edad de cada participante (reglas locales)         │
+   3. cupo de la fecha (reservas PENDIENTE + CONFIRMADA)             │
+   4. pronóstico (si requiereBuenClima) ─────────────────────────────┼──► Open-Meteo
+   5. traslado origen → punto de encuentro ──────────────────────────┼──► geoapi ──► OSRM
+   6. monto = precioBase × participantes                             │
+   7. persistir (PENDIENTE o RECHAZADA_POR_CLIMA)                    │
+   8. email asincrónico ─────────────────────────────────────────────┴──► Mailpit
 ```
 
-### Paso a paso de la orquestación (`POST /api/v1/reservas`):
-1. **Validación en Catálogo:** Consulta `GET /api/v1/catalogo/actividades/{id}`. Si la actividad no existe o está inactiva (`activa == false`), aborta con `404 Not Found`.
-2. **Control Estricto de Cupo:** Suma las personas ya reservadas para esa fecha en estados `PENDIENTE` y `CONFIRMADA`. Si `yaReservadas + cantidadPersonas > cupoMaximo`, aborta con `400 Bad Request`.
-3. **Chequeo Meteorológico:** Si `requiereBuenClima == true`, consulta Open-Meteo. Si la probabilidad de lluvia es $\ge 70\%$ o hay tormenta (`weatherCode >= 61`), la reserva se crea en estado `RECHAZADA_POR_CLIMA`. Si Open-Meteo no responde, activa fallback y continúa.
-4. **Cálculo Vial OSRM:** Invoca `POST /api/v1/geo/rutas/distancia` enviando origen y destino anidados, obteniendo `distanciaKm` y `duracionFormateada` (ej. `"2 hs 15 min"`).
-5. **Cálculo de Monto:** `montoTotal = precioBase * cantidadPersonas`.
-6. **Persistencia:** Almacena la entidad con estado inicial **`PENDIENTE`** (o `RECHAZADA_POR_CLIMA`).
-7. **Notificación SMTP:** Envía de forma asincrónica un correo al turista con el resumen y tiempo de traslado mediante Mailpit.
-8. **Respuesta al Cliente:** Retorna HTTP `201 Created` con el DTO enriquecido.
+| Paso | Regla | Resultado si falla |
+|---|---|---|
+| 0. Identidad | El turista (`X-User-Name`) y su email (`X-User-Email`) salen del JWT, no del cuerpo. | — |
+| 1. Catálogo | La actividad debe existir y estar activa. | `404` (o `502` si catálogo no responde) |
+| 2. Temporada | La fecha debe caer entre `mesInicioTemporada` y `mesFinTemporada` (admite temporadas que cruzan el año). | `400` |
+| 2. Edad | Cada participante debe cumplir `edadMinima` / `edadMaxima` **el día de la excursión**. | `400` |
+| 2. DNI | No puede haber DNI repetidos en la misma reserva. | `400` |
+| 3. RN01 Cupo | `ocupados + participantes <= cupoMaximo` para esa fecha. | `409 Conflict` |
+| 4. RN02 Clima | Lluvia `> 70 %` o `weather_code >= 61` → `RECHAZADA_POR_CLIMA` (no ocupa cupo). | Open-Meteo caído o fecha a +16 días: sigue sin alerta |
+| 5. RN03 Traslado | Distancia y duración desde el origen del turista. | geoapi/OSRM caído: `"No disponible"` |
+
+Respuesta: `201 Created` con la reserva enriquecida y email “Recibimos tu solicitud”.
 
 ---
 
-## 🗺️ 3. Mapa de Endpoints y Seguridad RBAC
+## ♻️ 3. Revalidación: una reserva válida puede dejar de serlo
 
-Todas las peticiones del frontend o clientes externos ingresan a través del `api-gateway` (puerto `8080`), el cual valida los tokens JWT de Keycloak y aplica los roles:
+Corre sola cada hora (`REVALIDACION_CRON`, por defecto `0 0 * * * *`) y el ADMIN puede dispararla con `POST /api/v1/reservas/revalidaciones`. Revisa las reservas `PENDIENTE` y `CONFIRMADA` con fecha futura, en este orden:
 
-| Método | Endpoint | Rol RBAC Requerido | Descripción |
-|:---:|:---|:---:|:---|
-| `POST` | `/api/v1/reservas` | `ROLE_TURISTA`, `ROLE_ADMIN` | Crea una reserva ejecutando toda la orquestación. Devuelve `201 Created`. |
-| `GET` | `/api/v1/reservas` | `ROLE_ADMIN` | Lista la totalidad de las reservas del sistema (auditoría global). |
-| `GET` | `/api/v1/reservas/mis-reservas` | `ROLE_TURISTA`, `ROLE_ADMIN` | Lista las reservas del turista logueado (parámetro opcional `turistaId`, default `turista1`). |
-| `GET` | `/api/v1/reservas/{id}` | `ROLE_TURISTA`, `ROLE_OPERADOR`, `ROLE_ADMIN` | Detalle completo de una reserva por su ID. |
-| `GET` | `/api/v1/reservas/actividad/{actividadId}` | `ROLE_OPERADOR`, `ROLE_ADMIN` | Lista todas las reservas recibidas para una excursión. |
-| `PUT` | `/api/v1/reservas/{id}/confirmar` | `ROLE_OPERADOR`, `ROLE_ADMIN` | Confirma una reserva en estado `PENDIENTE`. |
-| `PUT` | `/api/v1/reservas/{id}/cancelar` | `ROLE_TURISTA`, `ROLE_ADMIN` | Cancela una reserva (valida que no esté previamente cancelada o rechazada). |
+| Regla | Qué detecta | Cambio |
+|---|---|---|
+| Baja de la actividad | Catálogo devuelve 404 / `activa = false` | → `CANCELADA` |
+| Cambio de temporada | El prestador cambió la temporada y la fecha quedó afuera | → `CANCELADA` |
+| Reducción de cupo | Las reservas superan el nuevo `cupoMaximo` | Se cancelan las `PENDIENTE` **más recientes**; las `CONFIRMADA` se respetan |
+| Clima | Pronóstico adverso (hasta 16 días) en actividades que requieren buen clima | → `RECHAZADA_POR_CLIMA` |
+| Regla de 48 hs | Reserva `PENDIENTE` a 48 hs de la excursión | Email de recordatorio (una sola vez) |
+| Regla de 48 hs | Sigue `PENDIENTE` a 24 hs de la excursión | → `CANCELADA` (libera el cupo) |
 
----
+Cada cambio se notifica por email y queda explicado en `motivoEstado`. Si `ms-catalogo` no responde, esas reservas **no se tocan** (no se cancela nada por una falla técnica) y se reintenta en la próxima ejecución. La respuesta del endpoint resume la ejecución:
 
-## ⚙️ 4. Configuración y Propiedades
-
-En [`src/main/resources/application.properties`](file:///c:/Users/RYZEN/OneDrive/Universidad/tercer%20a%C3%B1o/Backend/tpi-backend/ms-reservas/src/main/resources/application.properties), bajo estándar 12-Factor App:
-
-```properties
-server.port=8082
-spring.application.name=ms-reservas
-
-# Base de datos: H2 en memoria para desarrollo local / PostgreSQL en Docker
-spring.datasource.url=jdbc:h2:mem:reservasdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-spring.datasource.driverClassName=org.h2.Driver
-spring.datasource.username=sa
-spring.datasource.password=
-spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
-spring.jpa.hibernate.ddl-auto=update
-
-# URLs de Microservicios Colaboradores
-servicios.catalogo.url=${MS_CATALOGO_URL:http://localhost:8081/api/v1/catalogo}
-servicios.geoapi.url=${GEOAPI_URL:http://localhost:8083/api/v1/geo}
-servicios.openmeteo.url=https://api.open-meteo.com/v1/forecast
-
-# Servidor SMTP de Notificaciones (Mailpit)
-spring.mail.host=${SPRING_MAIL_HOST:localhost}
-spring.mail.port=${SPRING_MAIL_PORT:1025}
-spring.mail.properties.mail.smtp.auth=false
-spring.mail.properties.mail.smtp.starttls.enable=false
-```
-
----
-
-## 🌐 5. Especificación de Contratos JSON
-
-### 5.1. Crear Reserva (`POST /api/v1/reservas`)
-
-#### Payload de Solicitud (Request Body):
 ```json
 {
-  "actividadId": 1,
-  "fechaExcursion": "2026-11-20",
-  "cantidadPersonas": 2,
-  "emailTurista": "turista1@example.com",
-  "origenTurista": {
-    "latitud": -31.4135,
-    "longitud": -64.18105,
-    "direccion": "Hotel Sheraton Córdoba, Duarte Quirós 1300"
-  }
+  "ejecutadaEn": "2026-11-12T17:00:00",
+  "reservasRevisadas": 4,
+  "actividadesNoVerificadas": 0,
+  "recordatoriosEnviados": 1,
+  "cambios": [
+    { "reservaId": 6, "actividadId": 5, "fechaExcursion": "2026-11-18",
+      "estadoAnterior": "PENDIENTE", "estadoNuevo": "CANCELADA",
+      "motivo": "La actividad fue dada de baja del catálogo por el prestador" }
+  ]
 }
 ```
-*(Nota: El campo `turistaId` es opcional; si no se especifica, toma por defecto `"turista1"`).*
 
-#### Respuesta Exitosa (`201 Created`):
+### Transiciones de estado (RN05)
+
+| Desde | Hacia | Quién |
+|---|---|---|
+| (nueva) | `PENDIENTE` / `RECHAZADA_POR_CLIMA` | Turista al crear |
+| `PENDIENTE` | `CONFIRMADA` | Operador / Admin (email con voucher) |
+| `PENDIENTE`, `CONFIRMADA` | `CANCELADA` | Turista titular, Admin o la revalidación |
+| `PENDIENTE`, `CONFIRMADA` | `RECHAZADA_POR_CLIMA` | Revalidación (pronóstico actualizado) |
+| `CANCELADA`, `RECHAZADA_POR_CLIMA` | — | Estados finales: cualquier transición → `400` |
+
+---
+
+## 🗺️ 4. Endpoints y seguridad
+
+Todo entra por el `api-gateway` (`http://localhost:8080`), que valida el JWT de Keycloak y los roles. En Docker el puerto `8082` **no se publica** (trusted zone).
+
+| Método | Endpoint | Rol | Descripción |
+|:---:|:---|:---:|:---|
+| `POST` | `/api/v1/reservas` | `TURISTA`, `ADMIN` | Crea una reserva ejecutando toda la orquestación. `201 Created`. |
+| `GET` | `/api/v1/reservas` | `ADMIN` | Todas las reservas del sistema (auditoría). |
+| `GET` | `/api/v1/reservas/mis-reservas` | `TURISTA`, `ADMIN` | Reservas del usuario del token. |
+| `GET` | `/api/v1/reservas/{id}` | Autenticado | Detalle. Un `TURISTA` solo ve las propias (`403`). |
+| `GET` | `/api/v1/reservas/actividad/{actividadId}` | `OPERADOR`, `ADMIN` | Contingente de una excursión. |
+| `PUT` | `/api/v1/reservas/{id}/confirmar` | `OPERADOR`, `ADMIN` | `PENDIENTE` → `CONFIRMADA` + voucher por email. |
+| `PUT` | `/api/v1/reservas/{id}/cancelar` | `TURISTA`, `ADMIN` | → `CANCELADA` + email. Un `TURISTA` solo cancela las propias. |
+| `POST` | `/api/v1/reservas/revalidaciones` | `ADMIN` | Ejecuta la revalidación en el momento. |
+
+---
+
+## 🌐 5. Contratos JSON
+
+### Crear reserva — request
 ```json
 {
-  "id": 4,
+  "actividadId": 3,
+  "fechaExcursion": "2026-11-18",
+  "participantes": [
+    { "nombre": "Lucía Fernández", "dni": "38123456", "fechaNacimiento": "1994-05-12", "telefono": "+54 351 555-1234" },
+    { "nombre": "Martín Fernández", "dni": "37987654", "fechaNacimiento": "1992-09-03" }
+  ],
+  "origenTurista": { "latitud": -31.4135, "longitud": -64.18105, "direccion": "Hotel Sheraton, Córdoba Capital" }
+}
+```
+* `fechaExcursion` debe ser futura; `participantes` entre 1 y 50; DNI de 7 u 8 dígitos.
+* `turistaId` y `emailTurista` **no se envían**: salen del token. Solo se aceptan en pruebas directas al `8082` sin gateway.
+
+### Crear reserva — respuesta `201 Created`
+```json
+{
+  "id": 5,
   "turistaId": "turista1",
   "emailTurista": "turista1@example.com",
-  "actividadId": 1,
-  "tituloActividad": "Ascenso al Cerro Champaquí",
-  "fechaExcursion": "2026-11-20",
+  "actividadId": 3,
+  "tituloActividad": "Cabalgata al Peñón del Águila y Bosques Suizos",
+  "fechaExcursion": "2026-11-18",
   "cantidadPersonas": 2,
-  "montoTotal": 90000.0,
+  "participantes": [ { "nombre": "Lucía Fernández", "dni": "38123456", "fechaNacimiento": "1994-05-12", "telefono": "+54 351 555-1234" }, { "...": "..." } ],
+  "montoTotal": 64000.0,
   "estado": "PENDIENTE",
-  "trasladoEstimado": {
-    "distanciaKm": 164.63,
-    "duracionFormateada": "3 hs 2 min"
-  },
+  "motivoEstado": "Pendiente de confirmación por el prestador",
+  "trasladoEstimado": { "distanciaKm": 92.4, "duracionFormateada": "1 hs 50 min" },
   "alertaClimatica": false,
-  "descripcionClima": "Probabilidad de lluvia: 15%, código de clima: 1, temperatura máxima: 24.5 °C",
+  "descripcionClima": null,
   "fechaCreacion": "2026-11-12T16:00:00"
 }
 ```
 
+### Errores
+Formato común de `common-lib`: `{ "timestamp", "status", "error", "message", "path", "validaciones" }`.
+
 ---
 
-## 🏗️ 6. Arquitectura y Estructura del Código
+## ⚙️ 6. Configuración
+
+[`application.properties`](src/main/resources/application.properties) usa H2 en memoria por defecto; en Docker las variables de entorno lo pasan a PostgreSQL (`reservasdb`).
+
+| Variable | Default | Uso |
+|---|---|---|
+| `MS_CATALOGO_URL` | `http://localhost:8081/api/v1/catalogo` | ms-catalogo |
+| `GEOAPI_URL` | `http://localhost:8083/api/v1/geo` | geoapi |
+| `SPRING_MAIL_HOST` / `SPRING_MAIL_PORT` | `localhost` / `1025` | Mailpit |
+| `REVALIDACION_HABILITADA` | `true` | Apaga el proceso programado |
+| `REVALIDACION_CRON` | `0 0 * * * *` | Frecuencia de la revalidación |
+
+---
+
+## 🏗️ 7. Estructura del código
 
 ```text
 ms-reservas/src/main/java/ms_reservas/
-├── MsReservasApplication.java
+├── MsReservasApplication.java      # @EnableAsync (emails) + @EnableScheduling (revalidación)
 ├── config/
-│   ├── RestClientConfig.java       # Bean central RestClient con timeouts de conexión y lectura
-│   └── DataLoader.java             # Precarga de reservas de prueba (CommandLineRunner)
-├── controllers/
-│   └── ReservaController.java      # Endpoints REST expuestos con validaciones @Valid
-├── entities/
-│   ├── Reserva.java                # Entidad JPA (@Table(name = "reservas"))
-│   └── EstadoReserva.java          # Enum (PENDIENTE, CONFIRMADA, CANCELADA, RECHAZADA_POR_CLIMA)
-├── repositories/
-│   └── ReservaRepository.java      # Repositorio JPA con queries de cupo por fecha
+│   ├── RestClientConfig.java       # RestClient con timeouts cortos (3 s conexión / 5 s lectura)
+│   ├── ClockConfig.java            # Reloj inyectable (zona Córdoba) para testear reglas de fechas
+│   ├── RevalidacionScheduler.java  # @Scheduled que dispara la revalidación
+│   └── DataLoader.java             # 4 reservas semilla (incluye una a 48 hs para la demo)
+├── controllers/ReservaController.java
+├── entities/                       # Reserva (1) ── (1..N) Participante, EstadoReserva
+├── repositories/ReservaRepository.java
+├── mappers/ReservaMapper.java
 ├── dtos/
-│   ├── request/
-│   │   ├── ReservaRequestDTO.java  # DTO de entrada con validaciones Jakarta
-│   │   └── OrigenTuristaDTO.java   # Coordenadas y dirección del turista
-│   ├── response/
-│   │   ├── ReservaResponseDTO.java # Respuesta enriquecida para el cliente
-│   │   └── TrasladoEstimadoDTO.java# Distancia y duración calculadas por OSRM
-│   └── external/                   # Contratos de integración inter-servicio
-│       ├── ActividadCatalogoDTO.java
-│       ├── RutaGeoRequestDTO.java
-│       ├── RutaGeoResponseDTO.java
-│       └── OpenMeteoResponseDTO.java
-├── clients/                        # Clientes HTTP desacoplados vía RestClient
-│   ├── CatalogoClient.java         # Comunicación sincrónica con ms-catalogo (8081)
-│   ├── GeoApiClient.java           # Comunicación sincrónica con geoapi (8083)
-│   └── OpenMeteoClient.java        # Consulta con resiliencia/fallback a Open-Meteo
-├── exceptions/
-│   ├── BadRequestException.java    # Error 400 por reglas de negocio violadas
-│   ├── ResourceNotFoundException.java # Error 404 por recursos inexistentes
-│   └── GlobalExceptionHandler.java # Interceptor @RestControllerAdvice con ErrorResponseDTO
+│   ├── request/                    # ReservaRequestDTO, ParticipanteDTO, OrigenTuristaDTO
+│   ├── response/                   # ReservaResponseDTO, TrasladoEstimadoDTO, ResultadoRevalidacionDTO
+│   └── external/                   # Contratos de ms-catalogo, geoapi y Open-Meteo
+├── clients/                        # CatalogoClient, GeoApiClient (fallback), OpenMeteoClient (fallback)
 └── services/
-    ├── ReservaService.java         # Interfaz de contrato de negocio
-    ├── EmailService.java           # Interfaz de despacho de notificaciones
-    └── impl/
-        ├── ReservaServiceImpl.java # Orquestador central de reservas
-        └── EmailServiceImpl.java   # Despacho de emails SMTP por JavaMailSender
+    ├── ReglasActividad.java        # Reglas puras: edad, temporada, clima adverso
+    ├── ReservaService.java / RevalidacionService.java / EmailService.java
+    └── impl/                       # ReservaServiceImpl, RevalidacionServiceImpl, EmailServiceImpl (@Async)
+```
+Las excepciones, el `ErrorResponseDTO`, el `GlobalExceptionHandler` y la lectura del usuario autenticado vienen de **`common-lib`**.
+
+### Tests
+* `ReglasActividadTest`: edad al día de la excursión, temporadas que cruzan el año, umbral de clima.
+* `RevalidacionServiceImplTest`: baja de actividad, catálogo caído, reducción de cupo, clima y regla de 48 hs (con reloj fijo).
+
+```bash
+mvn test -pl ms-reservas -am
 ```
 
 ---
 
-## 🐳 7. Despliegue con Docker y Base de Datos
+## 🐳 8. Ejecución
 
-### 1. Inicialización en PostgreSQL:
-Se incluye el script [`init-db/01-init.sql`](file:///c:/Users/RYZEN/OneDrive/Universidad/tercer%20a%C3%B1o/Backend/tpi-backend/init-db/01-init.sql) montado en `/docker-entrypoint-initdb.d` para que la instancia de Postgres cree automáticamente la base `reservasdb` junto a `catalogodb`.
+* **Con Docker (recomendado):** `docker compose up --build -d` desde la raíz. Swagger: `http://localhost:8080/swagger-ui.html` → *Reservas (ms-reservas)*. Correos: `http://localhost:8025`.
+* **Local sin Docker:** `mvn -pl ms-reservas spring-boot:run` → `http://localhost:8082/swagger-ui.html`, consola H2 en `/h2-console` (`jdbc:h2:mem:reservasdb`, usuario `sa`).
 
-### 2. Iniciar con Docker Compose:
-```powershell
-docker compose up --build -d
-```
-Verifica que los servicios queden en estado `healthy`/`running`:
-* `postgres-db`: `5432`
-* `mailpit`: `1025` (SMTP) / `8025` (Web UI en **http://localhost:8025**)
-* `keycloak`: `8180`
-* `ms-catalogo`: `8081`
-* `ms-reservas`: `8082`
-* `api-gateway`: `8080`
+## 🧪 9. Postman
 
-### 3. Ejecución Local Independiente:
-```powershell
-mvn clean package -DskipTests -pl ms-reservas
-java -jar ms-reservas/target/ms-reservas-1.0.0-SNAPSHOT.jar
-```
-* Acceso a Swagger UI: 👉 **[http://localhost:8082/swagger-ui.html](http://localhost:8082/swagger-ui.html)**
-* Consola H2: 👉 **[http://localhost:8082/h2-console](http://localhost:8082/h2-console)** (JDBC URL: `jdbc:h2:mem:reservasdb`, Usuario: `sa`, Contraseña en blanco).
-
----
-
-## 🧪 8. Pruebas y Validación (Postman y cURL)
-
-La colección oficial [`tpi_postman_collection.json`](file:///c:/Users/RYZEN/OneDrive/Universidad/tercer%20a%C3%B1o/Backend/tpi-backend/tpi_postman_collection.json) incluye la carpeta completa `2. Microservicio Reservas (ms-reservas)` lista para ejecutar en orden:
-
-### Flujo de Prueba Sugerido:
-1. **0.1 Login Turista:** Obtiene el token JWT y lo almacena automáticamente en `{{token}}`.
-2. **2.1.1 Crear Reserva:** Envía la solicitud con `emailTurista: "turista1@example.com"`. Recibe `201 Created` en estado `PENDIENTE`, calculando la distancia y despachando el correo a Mailpit.
-3. **Revisar Mailpit:** Abrir en el navegador `http://localhost:8025` para constatar la llegada del email con el tiempo estimado de viaje.
-4. **2.2.2 Confirmar Reserva (Operador):** Invoca `PUT /api/v1/reservas/1/confirmar` con token de operador; la reserva pasa a `CONFIRMADA`.
-5. **2.1.3 Cancelar Reserva (Turista):** Invoca `PUT /api/v1/reservas/1/cancelar`; la reserva pasa a `CANCELADA`. Si se intenta cancelar nuevamente, responde `400 Bad Request`.
-6. **2.3.2 Listar Todas las Reservas (Admin):** Invoca `GET /api/v1/reservas` con token de admin; lista todas las reservas del sistema.
+La colección [`tpi_postman_collection.json`](../tpi_postman_collection.json) cubre este servicio en las carpetas **03** (camino feliz), **04** (reglas de negocio negativas) y **05** (revalidación).

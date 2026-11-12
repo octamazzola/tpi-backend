@@ -65,7 +65,10 @@ public class DataLoader implements CommandLineRunner {
                     .latitudInicio(-31.9868)
                     .longitudInicio(-64.9351)
                     .direccionPuntoEncuentro("Villa Alpina, Valle de Calamuchita, Córdoba")
+                    .ciudad("Villa Alpina")
                     .requiereBuenClima(true)
+                    .edadMinima(14)
+                    .edadMaxima(65)
                     .activa(true)
                     .build();
 
@@ -79,7 +82,11 @@ public class DataLoader implements CommandLineRunner {
                     .latitudInicio(-31.3970)
                     .longitudInicio(-64.4630)
                     .direccionPuntoEncuentro("Costanera Centro, Villa Carlos Paz, Córdoba")
+                    .ciudad("Villa Carlos Paz")
                     .requiereBuenClima(true)
+                    // Temporada de navegación: septiembre a abril
+                    .mesInicioTemporada(9)
+                    .mesFinTemporada(4)
                     .activa(true)
                     .build();
 
@@ -93,6 +100,7 @@ public class DataLoader implements CommandLineRunner {
                     .latitudInicio(-31.9015)
                     .longitudInicio(-64.7731)
                     .direccionPuntoEncuentro("Puente de Acceso Peatonal, La Cumbrecita, Córdoba")
+                    .ciudad("La Cumbrecita")
                     .requiereBuenClima(false)
                     .activa(true)
                     .build();
@@ -107,13 +115,40 @@ public class DataLoader implements CommandLineRunner {
                     .latitudInicio(-31.4172)
                     .longitudInicio(-64.8347)
                     .direccionPuntoEncuentro("Refugio La Rotonda, Pampa de Achala, Córdoba")
+                    .ciudad("Tanti")
                     .requiereBuenClima(true)
+                    .edadMinima(18)
+                    // Temporada de escalada: marzo a noviembre (evita el calor y las tormentas de verano)
+                    .mesInicioTemporada(3)
+                    .mesFinTemporada(11)
                     .activa(true)
                     .build();
 
             actividadRepository.saveAll(List.of(champaqui, sanRoque, cumbrecita, gigantes));
             log.info("Excursiones precargadas con éxito (4 registros).");
             log.info("--> Documentación OpenAPI disponible en: http://localhost:8081/swagger-ui.html");
+        }
+        completarCiudadesFaltantes();
+    }
+
+    /**
+     * Migración de datos: las actividades creadas antes de existir el campo "ciudad" lo tienen vacío.
+     * Se completa con la localidad de la dirección del punto de encuentro, que por convención es el
+     * anteúltimo tramo: "Costanera Centro, Villa Carlos Paz, Córdoba" -> "Villa Carlos Paz".
+     */
+    private void completarCiudadesFaltantes() {
+        List<Actividad> sinCiudad = actividadRepository.findAll().stream()
+                .filter(a -> a.getCiudad() == null || a.getCiudad().isBlank())
+                .toList();
+        for (Actividad a : sinCiudad) {
+            String direccion = a.getDireccionPuntoEncuentro() == null ? "" : a.getDireccionPuntoEncuentro();
+            String[] partes = direccion.split(",");
+            String ciudad = (partes.length >= 2 ? partes[partes.length - 2] : partes[0]).trim();
+            a.setCiudad(ciudad.isBlank() ? "Sin especificar" : ciudad);
+        }
+        if (!sinCiudad.isEmpty()) {
+            actividadRepository.saveAll(sinCiudad);
+            log.info("Se completó la ciudad de {} actividades existentes.", sinCiudad.size());
         }
     }
 }

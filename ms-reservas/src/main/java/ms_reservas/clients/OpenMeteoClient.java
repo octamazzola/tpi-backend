@@ -35,7 +35,9 @@ public class OpenMeteoClient {
             OpenMeteoResponseDTO respuesta = restClient.get()
                     .uri(openMeteoUrl + "?latitude={lat}&longitude={lon}"
                             + "&daily=weather_code,precipitation_probability_max,temperature_2m_max"
-                            + "&timezone=America/Argentina/Cordoba",
+                            + "&timezone=America/Argentina/Cordoba"
+                            // Por defecto Open-Meteo devuelve solo 7 días; 16 es el máximo que ofrece
+                            + "&forecast_days=16",
                             latitud, longitud)
                     .retrieve()
                     .body(OpenMeteoResponseDTO.class);

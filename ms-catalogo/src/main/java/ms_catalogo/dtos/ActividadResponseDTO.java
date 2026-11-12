@@ -22,6 +22,11 @@ public class ActividadResponseDTO {
     private Double latitudInicio;
     private Double longitudInicio;
     private String direccionPuntoEncuentro;
+    private String ciudad;
     private Boolean requiereBuenClima;
+    private Integer edadMinima;
+    private Integer edadMaxima;
+    private Integer mesInicioTemporada;
+    private Integer mesFinTemporada;
     private Boolean activa;
 }

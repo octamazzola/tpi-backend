@@ -51,6 +51,10 @@ public class SecurityConfig {
                         // Métricas y Health check
                         .pathMatchers("/actuator/**").permitAll()
 
+                        // Documentación OpenAPI / Swagger UI agrupado (solo lectura de contratos)
+                        .pathMatchers(HttpMethod.GET, "/swagger-ui.html", "/swagger-ui/**", "/webjars/**",
+                                "/v3/api-docs/**", "/api-docs/**").permitAll()
+
                         // =========================================================================
                         // 2. Catálogo - Modificaciones de Excursiones (Solo OPERADOR / ADMIN)
                         // =========================================================================
@@ -66,6 +70,7 @@ public class SecurityConfig {
                         // =========================================================================
                         // 3. Reservas (RBAC Granular)
                         // =========================================================================
+                        .pathMatchers(HttpMethod.POST, "/api/v1/reservas/revalidaciones").hasRole("ADMIN")
                         .pathMatchers(HttpMethod.POST, "/api/v1/reservas").hasAnyRole("TURISTA", "ADMIN")
                         .pathMatchers(HttpMethod.GET, "/api/v1/reservas/mis-reservas").hasAnyRole("TURISTA", "ADMIN")
                         .pathMatchers(HttpMethod.GET, "/api/v1/reservas/actividad/**").hasAnyRole("OPERADOR", "PROVEEDOR", "ADMIN")

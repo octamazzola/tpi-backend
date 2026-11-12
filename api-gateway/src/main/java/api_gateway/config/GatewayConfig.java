@@ -38,6 +38,22 @@ public class GatewayConfig {
                 .route("geoapi", r -> r
                         .path("/api/v1/geo/**")
                         .uri(geoapiUrl))
+
+                // 4. Documentación OpenAPI de cada microservicio, para el Swagger UI agrupado del Gateway.
+                //    Los microservicios no publican puertos fuera de Docker (trusted zone), así que su
+                //    documentación solo es accesible a través de estas rutas.
+                .route("docs-catalogo", r -> r
+                        .path("/api-docs/catalogo")
+                        .filters(f -> f.setPath("/v3/api-docs"))
+                        .uri(msCatalogoUrl))
+                .route("docs-reservas", r -> r
+                        .path("/api-docs/reservas")
+                        .filters(f -> f.setPath("/v3/api-docs"))
+                        .uri(msReservasUrl))
+                .route("docs-geoapi", r -> r
+                        .path("/api-docs/geoapi")
+                        .filters(f -> f.setPath("/v3/api-docs"))
+                        .uri(geoapiUrl))
                 .build();
     }
 }

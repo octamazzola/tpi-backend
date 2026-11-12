@@ -1,29 +1,42 @@
+# =========================================================================
+# TPI Backend - Sistema de Gestión de Actividades Turísticas y Excursiones
+#
+# Despliegue completo:   docker compose up --build -d
+# (los Dockerfiles compilan cada módulo adentro: no hace falta Maven en la máquina)
+#
+# TRUSTED ZONE: solo se publican hacia afuera los puertos que un cliente necesita:
+#   - 8080  api-gateway   (único punto de entrada a las APIs y al Swagger UI agrupado)
+#   - 8180  keycloak      (login / obtención de tokens)
+#   - 8025  mailpit       (bandeja web para ver los correos enviados)
+#   - 5432  postgres-db   (solo en 127.0.0.1, para inspeccionar con DBeaver/pgAdmin)
+# Los microservicios, OSRM y el SMTP quedan accesibles únicamente dentro de la red tpi-network.
+# Así nadie puede saltearse el Gateway (ni falsificar los headers X-User-* que propaga).
+# =========================================================================
 services:
   # =========================================================================
-  # 1. Base de Datos Relacional: PostgreSQL 16
+  # 1. Base de Datos Relacional: PostgreSQL 16 (una base por microservicio)
   # =========================================================================
   postgres-db:
-    image: postgres:16-alpine # Imagen oficial minimalista (~30MB)
+    image: postgres:16-alpine
     container_name: postgres-db
     environment:
-      # Variables que Postgres lee en su primer arranque para crear la BD y usuario
+      # catalogodb se crea con POSTGRES_DB; reservasdb con init-db/01-init.sql
       POSTGRES_DB: catalogodb
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      # Formato HOST:CONTENEDOR. Permite conectar DBeaver / pgAdmin desde tu máquina en localhost:5432
-      - "5432:5432"
+      # Solo loopback: accesible desde tu máquina pero no desde la red
+      - "127.0.0.1:5432:5432"
     volumes:
-      # Volumen nombrado persistente: los datos se guardan en el disco del host
-      # para no perder las tablas si se destruye o recrea el contenedor
+      # Volumen nombrado persistente: los datos sobreviven a la recreación del contenedor
       - postgres-data:/var/lib/postgresql/data
-      - ./init-db:/docker-entrypoint-initdb.d
+      # Scripts que corren SOLO la primera vez que se crea el volumen
+      - ./init-db:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      # Evita race conditions: verifica cada 5s si el motor ya acepta conexiones reales
       test: [ "CMD-SHELL", "pg_isready -U postgres -d catalogodb" ]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
     restart: unless-stopped
     networks:
       - tpi-network
@@ -35,57 +48,86 @@ services:
     image: axllent/mailpit:latest
     container_name: mailpit
     ports:
-      # Puerto 1025: Servidor SMTP donde Spring Boot (ms-reservas) envía los emails
-      - "1025:1025"
-      # Puerto 8025: Bandeja de entrada web visual (http://localhost:8025)
+      # Bandeja de entrada web (http://localhost:8025). El SMTP (1025) es interno.
       - "8025:8025"
     restart: unless-stopped
     networks:
       - tpi-network
 
   # =========================================================================
-  # 3. Identity Provider (IdP): Keycloak 24 (OIDC / OAuth2 / Tokens JWT)
+  # 3. Identity Provider: Keycloak 24 (OIDC / OAuth2 / Tokens JWT)
   # =========================================================================
   keycloak:
     image: quay.io/keycloak/keycloak:24.0.5
     container_name: keycloak
-    command: start-dev
+    # --import-realm carga keycloak/tpi-realm.json (roles, cliente tpi-client y usuarios de prueba)
+    # si el realm todavía no existe. Así el entorno es reproducible aunque se recree el contenedor.
+    command: start-dev --import-realm
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
     ports:
-      # Puerto 8180 mapeado al 8080 del contenedor para no colisionar con el Gateway
+      # 8180 en el host para no colisionar con el Gateway (8080)
       - "8180:8080"
     restart: unless-stopped
     networks:
       - tpi-network
 
   # =========================================================================
-  # 4. Microservicio de Catálogo (Spring Boot 3.3.5 / Java 21)
+  # 4. Motor de Rutas OSRM (mapa de Argentina preprocesado en ./osrm-data)
+  # =========================================================================
+  osrm:
+    image: osrm/osrm-backend:latest
+    container_name: osrm
+    command: osrm-routed --algorithm ch /data/argentina-latest.osrm
+    volumes:
+      # Los datos NO se versionan (+4 GB): descargarlos según el README raíz
+      - ./osrm-data:/data:ro
+    restart: unless-stopped
+    networks:
+      - tpi-network
+
+  # =========================================================================
+  # 5. Microservicio Geoespacial: geoapi (8083, interno)
+  # =========================================================================
+  geoapi:
+    container_name: geoapi
+    build:
+      context: ./geoapi
+      dockerfile: Dockerfile
+    environment:
+      SERVER_PORT: 8083
+      # Dentro de la red de Docker, OSRM se resuelve por el nombre del servicio
+      OSRM_BASE_URL: http://osrm:5000
+    depends_on:
+      - osrm
+    restart: unless-stopped
+    networks:
+      - tpi-network
+
+  # =========================================================================
+  # 6. Microservicio de Catálogo: ms-catalogo (8081, interno)
   # =========================================================================
   ms-catalogo:
     container_name: ms-catalogo
     build:
-      context: ./ms-catalogo # Carpeta donde reside el proyecto
-      dockerfile: Dockerfile  # Receta para construir la imagen JRE 21 Alpine
-    ports:
-      # Permite acceder a Swagger UI en http://localhost:8081/swagger-ui.html
-      - "8081:8081"
+      # Contexto = raíz del repo: el módulo necesita el pom padre y common-lib
+      context: .
+      dockerfile: ms-catalogo/Dockerfile
     environment:
-      # Inyección de configuración (12-Factor App): sobreescribe application.properties
+      # 12-Factor App: las variables sobreescriben application.properties
       SPRING_APPLICATION_NAME: ms-catalogo
       SERVER_PORT: 8081
-      # Conexión JDBC: el host 'postgres-db' se resuelve por el DNS interno de Docker
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/catalogodb
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
-      # Dialecto para que Hibernate genere DDL y SQL óptimo para Postgres
       SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      SPRING_H2_CONSOLE_ENABLED: "false" # Apagamos H2 en este entorno
+      SPRING_H2_CONSOLE_ENABLED: "false"
     depends_on:
-      # ms-catalogo NO arranca hasta que postgres-db pase exitosamente su healthcheck
       postgres-db:
         condition: service_healthy
     restart: unless-stopped
@@ -93,15 +135,13 @@ services:
       - tpi-network
 
   # =========================================================================
-  # Microservicio de Reservas (Spring Boot 3.3.5 / Java 21)
+  # 7. Microservicio de Reservas: ms-reservas (8082, interno) - orquestador
   # =========================================================================
   ms-reservas:
     container_name: ms-reservas
     build:
-      context: ./ms-reservas
-      dockerfile: Dockerfile
-    ports:
-      - "8082:8082"
+      context: .
+      dockerfile: ms-reservas/Dockerfile
     environment:
       SPRING_APPLICATION_NAME: ms-reservas
       SERVER_PORT: 8082
@@ -116,10 +156,14 @@ services:
       GEOAPI_URL: http://geoapi:8083/api/v1/geo
       SPRING_MAIL_HOST: mailpit
       SPRING_MAIL_PORT: 1025
+      # Revalidación de reservas (baja, cupo, temporada, clima y regla de 48 hs): cada hora en punto
+      REVALIDACION_CRON: "0 0 * * * *"
     depends_on:
       postgres-db:
         condition: service_healthy
       ms-catalogo:
+        condition: service_started
+      geoapi:
         condition: service_started
       mailpit:
         condition: service_started
@@ -128,44 +172,37 @@ services:
       - tpi-network
 
   # =========================================================================
-  # 5. API Gateway (Spring Cloud Gateway / Puerto 8080)
+  # 8. API Gateway: único punto de entrada (8080)
   # =========================================================================
   api-gateway:
     container_name: api-gateway
     build:
-      context: ./api-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api-gateway/Dockerfile
     ports:
-      # Punto único de entrada al sistema para el cliente / frontend
       - "8080:8080"
     environment:
       SPRING_APPLICATION_NAME: api-gateway
       SERVER_PORT: 8080
-      # En la red virtual de Docker, los hosts se resuelven por el nombre del contenedor
+      # En la red de Docker los hosts se resuelven por el nombre del servicio
       MS_CATALOGO_URL: http://ms-catalogo:8081
       MS_RESERVAS_URL: http://ms-reservas:8082
       GEOAPI_URL: http://geoapi:8083
-      # URL interna de Keycloak dentro de Docker
-      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/tpi-realm
+      # Claves públicas de Keycloak para validar la firma de los JWT
       KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/tpi-realm/protocol/openid-connect/certs
     depends_on:
       - ms-catalogo
+      - ms-reservas
+      - geoapi
       - keycloak
     restart: unless-stopped
     networks:
       - tpi-network
 
-# =========================================================================
-# Volúmenes administrados por Docker
-# =========================================================================
 volumes:
-  # Espacio en disco persistente fuera del ciclo de vida de los contenedores
   postgres-data:
 
-# =========================================================================
-# Red virtual privada (Bridge Network)
-# =========================================================================
 networks:
-  # Switch virtual donde los contenedores se comunican entre sí por nombre de servicio
+  # Red privada: los contenedores se comunican entre sí por nombre de servicio
   tpi-network:
     driver: bridge
