@@ -12,6 +12,8 @@ public interface ReservaService {
 
     ReservaResponseDTO crear(ReservaRequestDTO dto);
 
+    List<ReservaResponseDTO> listarTodas();
+
     List<ReservaResponseDTO> listarPorTurista(String turistaId);
 
     ReservaResponseDTO obtenerPorId(Long id);

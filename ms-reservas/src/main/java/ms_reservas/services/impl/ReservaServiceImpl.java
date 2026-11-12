@@ -81,16 +81,21 @@ public class ReservaServiceImpl implements ReservaService {
         // 5. Calcular monto total
         double montoTotal = actividad.precioBase() * dto.getCantidadPersonas();
 
-        // 6. Guardar la reserva
+        // Identificador del turista (si no viene especificado, asigna turista1 por defecto)
+        String turistaId = (dto.getTuristaId() != null && !dto.getTuristaId().isBlank())
+                ? dto.getTuristaId()
+                : "turista1";
+
+        // 6. Guardar la reserva (inicia en PENDIENTE salvo alerta climática que la rechaza)
         Reserva reserva = Reserva.builder()
-                .turistaId(dto.getTuristaId())
+                .turistaId(turistaId)
                 .emailTurista(dto.getEmailTurista())
                 .actividadId(actividad.id())
                 .tituloActividad(actividad.titulo())
                 .fechaExcursion(dto.getFechaExcursion())
                 .cantidadPersonas(dto.getCantidadPersonas())
                 .montoTotal(montoTotal)
-                .estado(alertaClimatica ? EstadoReserva.RECHAZADA_POR_CLIMA : EstadoReserva.CONFIRMADA)
+                .estado(alertaClimatica ? EstadoReserva.RECHAZADA_POR_CLIMA : EstadoReserva.PENDIENTE)
                 .distanciaKm(ruta.distanciaKm())
                 .duracionEstimadaViaje(ruta.duracionFormateada())
                 .alertaClimatica(alertaClimatica)
@@ -104,6 +109,14 @@ public class ReservaServiceImpl implements ReservaService {
 
         // 8. Respuesta con el DTO completo (el controller responde 201 Created)
         return toResponseDTO(guardada);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReservaResponseDTO> listarTodas() {
+        return reservaRepository.findAll().stream()
+                .map(this::toResponseDTO)
+                .toList();
     }
 
     @Override
@@ -143,6 +156,9 @@ public class ReservaServiceImpl implements ReservaService {
     @Transactional
     public ReservaResponseDTO cancelar(Long id) {
         Reserva reserva = buscarPorId(id);
+        if (reserva.getEstado() == EstadoReserva.CANCELADA || reserva.getEstado() == EstadoReserva.RECHAZADA_POR_CLIMA) {
+            throw new BadRequestException("No se puede cancelar una reserva que ya se encuentra en estado " + reserva.getEstado());
+        }
         reserva.setEstado(EstadoReserva.CANCELADA);
         return toResponseDTO(reservaRepository.save(reserva));
     }

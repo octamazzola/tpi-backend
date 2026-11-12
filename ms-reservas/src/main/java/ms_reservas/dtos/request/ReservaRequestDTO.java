@@ -15,9 +15,9 @@ import java.time.LocalDate;
 @Builder
 public class ReservaRequestDTO {
 
-    @NotBlank(message = "El identificador del turista es obligatorio")
     @Size(max = 100, message = "El identificador del turista no puede superar los 100 caracteres")
-    private String turistaId;
+    @Builder.Default
+    private String turistaId = "turista1";
 
     @NotBlank(message = "El email del turista es obligatorio")
     @Email(message = "El email del turista no tiene un formato válido")

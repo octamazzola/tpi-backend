@@ -17,6 +17,7 @@ services:
       # Volumen nombrado persistente: los datos se guardan en el disco del host
       # para no perder las tablas si se destruye o recrea el contenedor
       - postgres-data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
     healthcheck:
       # Evita race conditions: verifica cada 5s si el motor ya acepta conexiones reales
       test: [ "CMD-SHELL", "pg_isready -U postgres -d catalogodb" ]
@@ -121,7 +122,7 @@ services:
       ms-catalogo:
         condition: service_started
       mailpit:
-        condition: service_healthy
+        condition: service_started
     restart: unless-stopped
     networks:
       - tpi-network

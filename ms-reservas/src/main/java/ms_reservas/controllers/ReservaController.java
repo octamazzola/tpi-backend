@@ -31,11 +31,20 @@ public class ReservaController {
     }
 
     /**
+     * GET /api/v1/reservas
+     * Lista la totalidad de las reservas del sistema (ADMIN).
+     */
+    @GetMapping
+    public ResponseEntity<List<ReservaResponseDTO>> listarTodas() {
+        return ResponseEntity.ok(reservaService.listarTodas());
+    }
+
+    /**
      * GET /api/v1/reservas/mis-reservas?turistaId=...
      * Lista las reservas del turista (TURISTA).
      */
     @GetMapping("/mis-reservas")
-    public ResponseEntity<List<ReservaResponseDTO>> misReservas(@RequestParam String turistaId) {
+    public ResponseEntity<List<ReservaResponseDTO>> misReservas(@RequestParam(required = false, defaultValue = "turista1") String turistaId) {
         return ResponseEntity.ok(reservaService.listarPorTurista(turistaId));
     }
 
