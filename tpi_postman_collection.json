@@ -1,4 +1,4 @@
-﻿{
+{
     "info": {
         "_postman_id": "tpi-backend-complete-collection-2026",
         "name": "TPI Backend - Suite Completa de Microservicios (RBAC)",
@@ -639,7 +639,7 @@
                                 ],
                                 "body": {
                                     "mode": "raw",
-                                    "raw": "{\n  \"actividadId\": 1,\n  \"fechaExcursion\": \"2026-11-20\",\n  \"cantidadPersonas\": 2,\n  \"origenTurista\": {\n    \"latitud\": -31.4135,\n    \"longitud\": -64.18105,\n    \"direccion\": \"Hotel Sheraton CÃ³rdoba, Duarte QuirÃ³s 1300\"\n  }\n}"
+                                    "raw": "{\n  \"actividadId\": 1,\n  \"fechaExcursion\": \"2026-11-20\",\n  \"cantidadPersonas\": 2,\n  \"origenTurista\": {\n    \"latitud\": -31.4135,\n    \"longitud\": -64.18105,\n    \"direccion\": \"Hotel Sheraton CÃ³rdoba, Duarte QuirÃ³s 1300\"\n  },\n  \"emailTurista\": \"turista1@example.com\"\n}"
                                 },
                                 "url": {
                                     "raw": "{{baseUrl}}/api/v1/reservas",
@@ -703,7 +703,7 @@
                                 "method": "PUT",
                                 "header": [],
                                 "url": {
-                                    "raw": "{{baseUrl}}/api/v1/reservas/101/cancelar",
+                                    "raw": "{{baseUrl}}/api/v1/reservas/1/cancelar",
                                     "host": [
                                         "{{baseUrl}}"
                                     ],
@@ -711,7 +711,7 @@
                                         "api",
                                         "v1",
                                         "reservas",
-                                        "101",
+                                        "1",
                                         "cancelar"
                                     ]
                                 },
@@ -772,7 +772,7 @@
                                 "method": "PUT",
                                 "header": [],
                                 "url": {
-                                    "raw": "{{baseUrl}}/api/v1/reservas/101/confirmar",
+                                    "raw": "{{baseUrl}}/api/v1/reservas/1/confirmar",
                                     "host": [
                                         "{{baseUrl}}"
                                     ],
@@ -780,7 +780,7 @@
                                         "api",
                                         "v1",
                                         "reservas",
-                                        "101",
+                                        "1",
                                         "confirmar"
                                     ]
                                 },
@@ -809,7 +809,7 @@
                                 "method": "GET",
                                 "header": [],
                                 "url": {
-                                    "raw": "{{baseUrl}}/api/v1/reservas/101",
+                                    "raw": "{{baseUrl}}/api/v1/reservas/1",
                                     "host": [
                                         "{{baseUrl}}"
                                     ],
@@ -817,7 +817,7 @@
                                         "api",
                                         "v1",
                                         "reservas",
-                                        "101"
+                                        "1"
                                     ]
                                 },
                                 "description": "Detalle completo con itinerario OSRM y reporte meteorolÃ³gico. Turista solo ve la suya; Proveedor ve las de sus excursiones; Admin ve cualquiera."
