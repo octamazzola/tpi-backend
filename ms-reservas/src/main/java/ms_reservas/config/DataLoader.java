@@ -9,7 +9,6 @@ import ms_reservas.repositories.ReservaRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
-import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -26,7 +25,6 @@ import java.util.List;
 public class DataLoader implements CommandLineRunner {
 
     private final ReservaRepository reservaRepository;
-    private final Clock clock;
 
     @Override
     public void run(String... args) {
@@ -34,7 +32,7 @@ public class DataLoader implements CommandLineRunner {
             return;
         }
         log.info("Iniciando la carga de datos semilla para ms-reservas...");
-        LocalDate hoy = LocalDate.now(clock);
+        LocalDate hoy = LocalDate.now();
 
         Reserva pendiente = reserva("turista1", 1L, "Ascenso al Cerro Champaquí", hoy.plusDays(10), 45000.0,
                 EstadoReserva.PENDIENTE, "Pendiente de confirmación por el prestador", 150.5, "2 hs 30 min",
@@ -82,7 +80,7 @@ public class DataLoader implements CommandLineRunner {
                 .distanciaKm(km)
                 .duracionEstimadaViaje(duracion)
                 .alertaClimatica(false)
-                .fechaCreacion(LocalDateTime.now(clock))
+                .fechaCreacion(LocalDateTime.now())
                 .build();
     }
 

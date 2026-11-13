@@ -34,13 +34,6 @@
 			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
 		</dependency>
 
-		<!-- Swagger UI agrupado: muestra la documentación OpenAPI de cada microservicio a través del Gateway -->
-		<dependency>
-			<groupId>org.springdoc</groupId>
-			<artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
-			<version>2.5.0</version>
-		</dependency>
-
 		<!-- Utilidades -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>

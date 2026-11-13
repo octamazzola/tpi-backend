@@ -12,18 +12,17 @@ Los cambios salen de revisar el repo contra los READMEs, contra el **enunciado d
    ```bash
    docker compose down -v
    ```
-2. **Levantar todo** (ya no hace falta compilar antes con Maven):
+2. **Compilar con Maven y levantar todo:**
    ```bash
+   mvn clean package -DskipTests
    docker compose up --build -d
    ```
-   El primer build tarda unos minutos porque descarga dependencias adentro de los contenedores.
 3. **Reimportar Postman:** borrar la colección vieja e importar `tpi_postman_collection.json`. Correrla entera con el *Collection Runner*.
 4. **Keycloak ya no se configura a mano:** el realm, el cliente, los roles y los usuarios se importan solos.
 
 | URL | Qué es |
 |---|---|
 | http://localhost:8080 | API Gateway (única entrada a las APIs) |
-| http://localhost:8080/swagger-ui.html | Swagger UI con las 3 APIs |
 | http://localhost:8180 | Keycloak (admin / admin) |
 | http://localhost:8025 | Bandeja de correos (Mailpit) |
 
@@ -55,11 +54,10 @@ Usuarios de prueba (contraseña `1234`): `turista1`, `turista2`, `operador1`, `a
 ### 1.4. `common-lib` estaba vacío
 - **Antes:** el README decía que tenía el handler de errores, el DTO de error y `SecurityUtils`, pero **no tenía ni una clase**. Cada microservicio tenía su propia copia. El enunciado exige un JAR común **usado como dependencia** por los dos microservicios: no cumplíamos.
 - **Ahora `common-lib` tiene:**
-  - `GlobalExceptionHandler`, que se registra solo (auto-configuración): respuestas 400, 403, 404, 405, 409, 502 y 500 con el mismo formato.
+  - `GlobalExceptionHandler` (importado con `@Import(GlobalExceptionHandler.class)`): respuestas 400, 403, 404, 405, 409, 502 y 500 con el mismo formato.
   - `ErrorResponseDTO`: `{ timestamp, status, error, message, path, validaciones }`.
   - Excepciones: `BadRequestException`, `ResourceNotFoundException`, `ConflictException`, `ForbiddenException`.
   - `UserHeaders` y `UsuarioAutenticado`: el contrato de identidad entre el Gateway y los microservicios (es el "SecurityUtils").
-  - La configuración OpenAPI común (esquema Bearer JWT para Swagger).
 - Se borraron las copias duplicadas de `ms-catalogo` y `ms-reservas`. **Queda fuera a propósito** todo lo que es dominio (entidades, repositorios, reglas): cada servicio conserva su modelo.
 
 ### 1.5. Keycloak perdía todo al recrear el contenedor
@@ -83,7 +81,7 @@ Salen del enunciado (*"una reserva inicialmente válida podría dejar de ser via
 - Datos semilla para probarlo: Champaquí (14 a 65 años), San Roque (temporada sep-abr), Los Gigantes (+18, temporada mar-nov).
 
 ### 2.3. Revalidación: una reserva válida puede dejar de serlo ⭐
-Es lo que más pesa del dominio que elegimos. Un proceso programado (**cada hora**) revisa las reservas `PENDIENTE` y `CONFIRMADA` con fecha futura. El admin también lo puede disparar con `POST /api/v1/reservas/revalidaciones`.
+Es lo que más pesa del dominio que elegimos. El endpoint `POST /api/v1/reservas/revalidaciones` (ADMIN) revisa las reservas `PENDIENTE` y `CONFIRMADA` con fecha futura.
 
 | Regla | Qué pasa |
 |---|---|
@@ -102,9 +100,8 @@ Se mandan al crear, al confirmar (funciona como **voucher**), al cancelar, al re
 
 ### 2.5. Filtro por ciudad en el catálogo
 - Las actividades tienen un campo **`ciudad`** propio (ej. "Villa Carlos Paz") y `GET /actividades?ciudad=` filtra por ese campo.
-- La búsqueda es parcial y **no distingue mayúsculas ni tildes**: `carlos paz`, `CARLOS PAZ` y `villa` encuentran "Villa Carlos Paz".
+- La búsqueda es parcial e insensible a mayúsculas (`toLowerCase().contains(...)`): `carlos paz`, `CARLOS PAZ` y `villa` encuentran "Villa Carlos Paz".
 - **Si no hay coincidencias responde `200` con `[]`.** Es lo correcto en REST: la colección existe, solo que el filtro no encontró resultados. Un 404 sería para un recurso que no existe.
-- **Antes** buscaba dentro de toda la dirección: "Córdoba" traía todas las actividades (es la provincia) y "cordoba" sin tilde no traía ninguna.
 
 ---
 
@@ -115,15 +112,10 @@ Se mandan al crear, al confirmar (funciona como **voucher**), al cancelar, al re
 - Los microservicios, OSRM y el SMTP quedan **solo dentro de la red `tpi-network`**.
 - **Por qué:** el enunciado pide justificar la trusted zone. Antes se podía llamar directo al 8082 y saltearse el Gateway, incluso mandando headers `X-User-*` falsos. Ahora la única puerta es el Gateway.
 
-### 3.2. Swagger agrupado en el Gateway
-- http://localhost:8080/swagger-ui.html tiene un desplegable con **Catálogo, Reservas y GeoAPI**, más el botón *Authorize* para pegar el JWT.
-- **Por qué:** al cerrar los puertos de los microservicios, su Swagger dejaba de verse, y el enunciado exige documentación OpenAPI. Además el README ya prometía un Swagger agrupado que no existía.
+### 3.2. Dockerfiles simples (Apunte 21 y 22)
+- Cada Dockerfile sigue el formato clásico de cátedra (`FROM eclipse-temurin:21-jre-alpine` + `COPY target/*.jar app.jar`). Primero se compila con Maven (`mvn clean package`) y después se levanta con `docker compose up --build -d`.
 
-### 3.3. Dockerfiles multi-stage
-- Cada Dockerfile **compila el módulo adentro del contenedor**: alcanza con `docker compose up --build -d`, sin Maven en la máquina.
-- `.dockerignore` excluye `osrm-data` (+4 GB) para que el build no mande todo eso a Docker.
-
-### 3.4. Otros ajustes
+### 3.3. Otros ajustes
 - `docker-compose.osrm.yml` queda **solo** para desarrollo local sin el compose completo (usarlos juntos choca, porque los dos crean un contenedor `osrm`).
 - El gateway ahora espera a todos los servicios antes de arrancar.
 
@@ -145,8 +137,7 @@ Se mandan al crear, al confirmar (funciona como **voucher**), al cancelar, al re
 
 | Módulo | Tests |
 |---|---|
-| `ms-reservas` | `ReglasActividadTest` (edad, temporada, clima) y `RevalidacionServiceImplTest` (baja, catálogo caído, cupo, clima, 48 hs) con reloj fijo |
-| `ms-catalogo` | `TextoNormalizadoTest` (búsqueda sin tildes ni mayúsculas) |
+| `ms-reservas` | `ReglasActividadTest` (edad, temporada, clima) y `RevalidacionServiceImplTest` (baja, catálogo caído, cupo, clima, 48 hs) |
 | `api-gateway` | `UserHeadersFilterTest` (propaga identidad e ignora headers falsificados) |
 
 ```bash

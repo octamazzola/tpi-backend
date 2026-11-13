@@ -15,40 +15,58 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.ResourceAccessException;
 
-import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class RevalidacionServiceImplTest {
 
-    private static final ZoneId ZONA = ZoneId.of("America/Argentina/Cordoba");
-    private static final LocalDate HOY = LocalDate.of(2026, 11, 12);
+    private final LocalDate hoy = LocalDate.now();
 
     private ReservaRepository repo;
-    private CatalogoClient catalogo;
-    private OpenMeteoClient meteo;
-    private EmailService email;
+    private Function<Long, ActividadCatalogoDTO> respuestaCatalogo;
+    private Function<LocalDate, Optional<PronosticoDia>> respuestaClima;
+    private List<NotificacionRegistrada> notificaciones;
     private RevalidacionServiceImpl service;
     private final AtomicLong ids = new AtomicLong();
+
+    private record NotificacionRegistrada(Reserva reserva, TipoNotificacion tipo) {}
 
     @BeforeEach
     void setUp() {
         repo = mock(ReservaRepository.class);
-        catalogo = mock(CatalogoClient.class);
-        meteo = mock(OpenMeteoClient.class);
-        email = mock(EmailService.class);
-        Clock clock = Clock.fixed(HOY.atTime(10, 0).atZone(ZONA).toInstant(), ZONA);
-        service = new RevalidacionServiceImpl(repo, catalogo, meteo, email, clock);
-        when(meteo.obtenerPronostico(anyDouble(), anyDouble(), any())).thenReturn(Optional.empty());
+        notificaciones = new ArrayList<>();
+        respuestaCatalogo = id -> actividad(id, 10, false);
+        respuestaClima = fecha -> Optional.empty();
+
+        CatalogoClient catalogo = new CatalogoClient(null) {
+            @Override
+            public ActividadCatalogoDTO obtenerActividad(Long id) {
+                return respuestaCatalogo.apply(id);
+            }
+        };
+
+        OpenMeteoClient meteo = new OpenMeteoClient(null) {
+            @Override
+            public Optional<PronosticoDia> obtenerPronostico(double latitud, double longitud, LocalDate fecha) {
+                return respuestaClima.apply(fecha);
+            }
+        };
+
+        EmailService email = (reserva, tipo) -> notificaciones.add(new NotificacionRegistrada(reserva, tipo));
+
+        service = new RevalidacionServiceImpl(repo, catalogo, meteo, email);
     }
 
     private Reserva reserva(long actividadId, int diasHastaExcursion, int personas, EstadoReserva estado, int minutosCreacion) {
@@ -57,11 +75,11 @@ class RevalidacionServiceImplTest {
                 .actividadId(actividadId)
                 .tituloActividad("Act " + actividadId)
                 .emailTurista("t@example.com")
-                .fechaExcursion(HOY.plusDays(diasHastaExcursion))
+                .fechaExcursion(hoy.plusDays(diasHastaExcursion))
                 .cantidadPersonas(personas)
                 .estado(estado)
                 .recordatorioEnviado(false)
-                .fechaCreacion(LocalDateTime.of(2026, 11, 1, 10, 0).plusMinutes(minutosCreacion))
+                .fechaCreacion(LocalDateTime.now().minusDays(5).plusMinutes(minutosCreacion))
                 .build();
     }
 
@@ -71,7 +89,8 @@ class RevalidacionServiceImplTest {
     }
 
     private void vigentes(Reserva... reservas) {
-        when(repo.findByEstadoInAndFechaExcursionGreaterThanEqual(anyCollection(), eq(HOY))).thenReturn(List.of(reservas));
+        when(repo.findByEstadoInAndFechaExcursionGreaterThanEqual(anyCollection(), eq(hoy))).thenReturn(List.of(reservas));
+        when(repo.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
     @Test
@@ -79,21 +98,25 @@ class RevalidacionServiceImplTest {
         Reserva a = reserva(1, 10, 2, EstadoReserva.PENDIENTE, 0);
         Reserva b = reserva(1, 12, 1, EstadoReserva.CONFIRMADA, 1);
         vigentes(a, b);
-        when(catalogo.obtenerActividad(1L)).thenThrow(new ResourceNotFoundException("no existe"));
+        respuestaCatalogo = id -> {
+            throw new ResourceNotFoundException("no existe");
+        };
 
         ResultadoRevalidacionDTO r = service.revalidar();
 
         assertThat(a.getEstado()).isEqualTo(EstadoReserva.CANCELADA);
         assertThat(b.getEstado()).isEqualTo(EstadoReserva.CANCELADA);
         assertThat(r.cambios()).hasSize(2);
-        verify(email, times(2)).notificar(any(), eq(TipoNotificacion.RESERVA_CANCELADA));
+        assertThat(notificaciones).filteredOn(n -> n.tipo() == TipoNotificacion.RESERVA_CANCELADA).hasSize(2);
     }
 
     @Test
     void catalogoCaidoNoCancelaNada() {
         Reserva a = reserva(1, 10, 2, EstadoReserva.PENDIENTE, 0);
         vigentes(a);
-        when(catalogo.obtenerActividad(1L)).thenThrow(new ResourceAccessException("timeout"));
+        respuestaCatalogo = id -> {
+            throw new ResourceAccessException("timeout");
+        };
 
         ResultadoRevalidacionDTO r = service.revalidar();
 
@@ -108,7 +131,7 @@ class RevalidacionServiceImplTest {
         Reserva vieja = reserva(1, 10, 2, EstadoReserva.PENDIENTE, 1);
         Reserva nueva = reserva(1, 10, 2, EstadoReserva.PENDIENTE, 2);
         vigentes(confirmada, vieja, nueva);
-        when(catalogo.obtenerActividad(1L)).thenReturn(actividad(1, 5, false)); // 7 personas > cupo 5
+        respuestaCatalogo = id -> actividad(1, 5, false); // 7 personas > cupo 5
 
         service.revalidar();
 
@@ -121,15 +144,16 @@ class RevalidacionServiceImplTest {
     void pronosticoAdversoRechazaPorClima() {
         Reserva a = reserva(1, 7, 2, EstadoReserva.CONFIRMADA, 0);
         vigentes(a);
-        when(catalogo.obtenerActividad(1L)).thenReturn(actividad(1, 10, true));
-        when(meteo.obtenerPronostico(anyDouble(), anyDouble(), eq(HOY.plusDays(7))))
-                .thenReturn(Optional.of(new PronosticoDia(85, 63, 15.0)));
+        respuestaCatalogo = id -> actividad(1, 10, true);
+        respuestaClima = fecha -> fecha.equals(hoy.plusDays(7))
+                ? Optional.of(new PronosticoDia(85, 63, 15.0))
+                : Optional.empty();
 
         service.revalidar();
 
         assertThat(a.getEstado()).isEqualTo(EstadoReserva.RECHAZADA_POR_CLIMA);
         assertThat(a.getAlertaClimatica()).isTrue();
-        verify(email).notificar(a, TipoNotificacion.RESERVA_RECHAZADA_POR_CLIMA);
+        assertThat(notificaciones).containsExactly(new NotificacionRegistrada(a, TipoNotificacion.RESERVA_RECHAZADA_POR_CLIMA));
     }
 
     @Test
@@ -138,7 +162,7 @@ class RevalidacionServiceImplTest {
         Reserva manana = reserva(1, 1, 1, EstadoReserva.PENDIENTE, 1);
         Reserva confirmadaManana = reserva(1, 1, 1, EstadoReserva.CONFIRMADA, 2);
         vigentes(aDosDias, manana, confirmadaManana);
-        when(catalogo.obtenerActividad(1L)).thenReturn(actividad(1, 10, false));
+        respuestaCatalogo = id -> actividad(1, 10, false);
 
         ResultadoRevalidacionDTO r = service.revalidar();
 
@@ -150,6 +174,8 @@ class RevalidacionServiceImplTest {
 
         // Una segunda ejecución no reenvía el recordatorio
         service.revalidar();
-        verify(email, times(1)).notificar(aDosDias, TipoNotificacion.RECORDATORIO_CONFIRMACION);
+        assertThat(notificaciones)
+                .filteredOn(n -> n.reserva() == aDosDias && n.tipo() == TipoNotificacion.RECORDATORIO_CONFIRMACION)
+                .hasSize(1);
     }
 }

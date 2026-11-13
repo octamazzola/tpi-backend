@@ -28,7 +28,6 @@ import ms_reservas.services.ReservaService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -51,7 +50,6 @@ public class ReservaServiceImpl implements ReservaService {
     private final OpenMeteoClient openMeteoClient;
     private final EmailService emailService;
     private final ReservaMapper reservaMapper;
-    private final Clock clock;
 
     @Override
     @Transactional
@@ -125,7 +123,7 @@ public class ReservaServiceImpl implements ReservaService {
                 .duracionEstimadaViaje(ruta.map(RutaGeoResponseDTO::duracionFormateada).orElse("No disponible"))
                 .alertaClimatica(alertaClimatica)
                 .descripcionClima(descripcionClima)
-                .fechaCreacion(LocalDateTime.now(clock))
+                .fechaCreacion(LocalDateTime.now())
                 .build();
         Reserva guardada = reservaRepository.save(reserva);
 

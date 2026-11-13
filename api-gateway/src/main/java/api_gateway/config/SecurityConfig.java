@@ -51,10 +51,6 @@ public class SecurityConfig {
                         // Métricas y Health check
                         .pathMatchers("/actuator/**").permitAll()
 
-                        // Documentación OpenAPI / Swagger UI agrupado (solo lectura de contratos)
-                        .pathMatchers(HttpMethod.GET, "/swagger-ui.html", "/swagger-ui/**", "/webjars/**",
-                                "/v3/api-docs/**", "/api-docs/**").permitAll()
-
                         // =========================================================================
                         // 2. Catálogo - Modificaciones de Excursiones (Solo OPERADOR / ADMIN)
                         // =========================================================================

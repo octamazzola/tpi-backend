@@ -4,8 +4,6 @@ spring:
 
 server:
   port: ${SERVER_PORT:8083}
-  # Respeta X-Forwarded-* del Gateway para que Swagger apunte a http://localhost:8080
-  forward-headers-strategy: framework
 
 osrm:
   base-url: ${OSRM_BASE_URL:http://localhost:5000}

@@ -15,7 +15,6 @@ import ms_catalogo.mappers.ActividadMapper;
 import ms_catalogo.repositories.ActividadRepository;
 import ms_catalogo.repositories.CategoriaRepository;
 import ms_catalogo.services.ActividadService;
-import ms_catalogo.services.TextoNormalizado;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,9 +36,8 @@ public class ActividadServiceImpl implements ActividadService {
                 .filter(a -> categoriaId == null || a.getCategoria().getId().equals(categoriaId))
                 .filter(a -> dificultad == null || a.getDificultad().equals(dificultad))
                 .filter(a -> precioMax == null || a.getPrecioBase() <= precioMax)
-                // Coincidencia parcial sobre la ciudad, sin distinguir mayúsculas ni tildes:
-                // "carlos paz", "Villa Carlos" y "VILLA CARLOS PAZ" encuentran "Villa Carlos Paz".
-                .filter(a -> ciudad == null || ciudad.isBlank() || TextoNormalizado.contiene(a.getCiudad(), ciudad))
+                .filter(a -> ciudad == null || ciudad.isBlank()
+                        || (a.getCiudad() != null && a.getCiudad().toLowerCase().contains(ciudad.trim().toLowerCase())))
                 .map(actividadMapper::toResponseDTO)
                 .toList();
     }

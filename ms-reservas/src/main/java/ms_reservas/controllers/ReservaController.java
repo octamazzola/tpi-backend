@@ -100,8 +100,7 @@ public class ReservaController {
 
     /**
      * POST /api/v1/reservas/revalidaciones
-     * Ejecuta en el momento la revalidación de reservas vigentes (ADMIN). Normalmente corre sola
-     * cada hora; este endpoint permite dispararla para auditoría o para la demo.
+     * Ejecuta la revalidación de reservas vigentes (ADMIN) ante cambios en la actividad o el pronóstico.
      */
     @PostMapping("/revalidaciones")
     public ResponseEntity<ResultadoRevalidacionDTO> revalidar() {

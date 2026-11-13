@@ -1,11 +1,11 @@
 # =========================================================================
 # TPI Backend - Sistema de Gestión de Actividades Turísticas y Excursiones
 #
-# Despliegue completo:   docker compose up --build -d
-# (los Dockerfiles compilan cada módulo adentro: no hace falta Maven en la máquina)
+# Paso 1 (Empaquetar):    mvn clean install -DskipTests
+# Paso 2 (Desplegar):     docker compose up --build -d
 #
 # TRUSTED ZONE: solo se publican hacia afuera los puertos que un cliente necesita:
-#   - 8080  api-gateway   (único punto de entrada a las APIs y al Swagger UI agrupado)
+#   - 8080  api-gateway   (único punto de entrada a las APIs)
 #   - 8180  keycloak      (login / obtención de tokens)
 #   - 8025  mailpit       (bandeja web para ver los correos enviados)
 #   - 5432  postgres-db   (solo en 127.0.0.1, para inspeccionar con DBeaver/pgAdmin)
@@ -113,9 +113,8 @@ services:
   ms-catalogo:
     container_name: ms-catalogo
     build:
-      # Contexto = raíz del repo: el módulo necesita el pom padre y common-lib
-      context: .
-      dockerfile: ms-catalogo/Dockerfile
+      context: ./ms-catalogo
+      dockerfile: Dockerfile
     environment:
       # 12-Factor App: las variables sobreescriben application.properties
       SPRING_APPLICATION_NAME: ms-catalogo
@@ -140,8 +139,8 @@ services:
   ms-reservas:
     container_name: ms-reservas
     build:
-      context: .
-      dockerfile: ms-reservas/Dockerfile
+      context: ./ms-reservas
+      dockerfile: Dockerfile
     environment:
       SPRING_APPLICATION_NAME: ms-reservas
       SERVER_PORT: 8082
@@ -156,8 +155,6 @@ services:
       GEOAPI_URL: http://geoapi:8083/api/v1/geo
       SPRING_MAIL_HOST: mailpit
       SPRING_MAIL_PORT: 1025
-      # Revalidación de reservas (baja, cupo, temporada, clima y regla de 48 hs): cada hora en punto
-      REVALIDACION_CRON: "0 0 * * * *"
     depends_on:
       postgres-db:
         condition: service_healthy
@@ -177,8 +174,8 @@ services:
   api-gateway:
     container_name: api-gateway
     build:
-      context: .
-      dockerfile: api-gateway/Dockerfile
+      context: ./api-gateway
+      dockerfile: Dockerfile
     ports:
       - "8080:8080"
     environment:

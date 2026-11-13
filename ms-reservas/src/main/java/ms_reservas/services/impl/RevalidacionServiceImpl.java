@@ -20,7 +20,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClientException;
 
-import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -58,12 +57,11 @@ public class RevalidacionServiceImpl implements RevalidacionService {
     private final CatalogoClient catalogoClient;
     private final OpenMeteoClient openMeteoClient;
     private final EmailService emailService;
-    private final Clock clock;
 
     @Override
     @Transactional
     public ResultadoRevalidacionDTO revalidar() {
-        LocalDate hoy = LocalDate.now(clock);
+        LocalDate hoy = LocalDate.now();
         List<Reserva> vigentes = reservaRepository
                 .findByEstadoInAndFechaExcursionGreaterThanEqual(ReservaRepository.ESTADOS_ACTIVOS, hoy);
 
@@ -100,7 +98,7 @@ public class RevalidacionServiceImpl implements RevalidacionService {
 
         log.info("Revalidación: {} reservas revisadas, {} cambios de estado, {} recordatorios, {} actividades sin verificar",
                 vigentes.size(), cambios.size(), recordatorios, noVerificadas);
-        return new ResultadoRevalidacionDTO(LocalDateTime.now(clock), vigentes.size(), noVerificadas, recordatorios, cambios);
+        return new ResultadoRevalidacionDTO(LocalDateTime.now(), vigentes.size(), noVerificadas, recordatorios, cambios);
     }
 
     private void revalidarActividad(ActividadCatalogoDTO actividad, List<Reserva> reservas, LocalDate hoy,
