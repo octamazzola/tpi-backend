@@ -13,9 +13,9 @@ import ms_catalogo.dtos.ActividadResponseDTO;
 import ms_catalogo.dtos.DisponibilidadDTO;
 import ms_catalogo.entities.Dificultad;
 import ms_catalogo.services.ActividadService;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.List;
 
@@ -84,7 +84,9 @@ public class ActividadController {
     })
     public ResponseEntity<ActividadResponseDTO> crear(@Valid @RequestBody ActividadRequestDTO dto) {
         ActividadResponseDTO creada = actividadService.crear(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(creada);
+        // 201 con header Location apuntando al recurso creado (Apunte 14)
+        return ResponseEntity.created(ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{id}").buildAndExpand(creada.getId()).toUri()).body(creada);
     }
 
     @PutMapping("/{id}")

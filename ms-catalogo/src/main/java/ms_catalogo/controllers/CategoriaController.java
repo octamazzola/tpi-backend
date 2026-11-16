@@ -9,9 +9,9 @@ import lombok.RequiredArgsConstructor;
 import ms_catalogo.dtos.CategoriaRequestDTO;
 import ms_catalogo.dtos.CategoriaResponseDTO;
 import ms_catalogo.services.CategoriaService;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.List;
 
@@ -75,7 +75,9 @@ public class CategoriaController {
     })
     public ResponseEntity<CategoriaResponseDTO> crear(@Valid @RequestBody CategoriaRequestDTO dto) {
         CategoriaResponseDTO creada = categoriaService.crear(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(creada);
+        // 201 con header Location apuntando al recurso creado (Apunte 14)
+        return ResponseEntity.created(ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{id}").buildAndExpand(creada.getId()).toUri()).body(creada);
     }
 
     /**

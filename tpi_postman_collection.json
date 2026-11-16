@@ -524,7 +524,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
-                  "pm.collectionVariables.set(\"categoria_id\", pm.response.json().id);"
+                  "pm.collectionVariables.set(\"categoria_id\", pm.response.json().id);",
+                  "pm.test(\"Location apunta al recurso creado (Apunte 14)\", () => pm.expect(pm.response.headers.get(\"Location\")).to.eql(pm.collectionVariables.get(\"baseUrl\") + \"/api/v1/catalogo/categorias/\" + pm.response.json().id));"
                 ]
               }
             }
@@ -570,7 +571,8 @@
                 "exec": [
                   "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
                   "pm.collectionVariables.set(\"actividad_id\", pm.response.json().id);",
-                  "pm.test(\"Queda activa\", () => pm.expect(pm.response.json().activa).to.be.true);"
+                  "pm.test(\"Queda activa\", () => pm.expect(pm.response.json().activa).to.be.true);",
+                  "pm.test(\"Location apunta al recurso creado (Apunte 14)\", () => pm.expect(pm.response.headers.get(\"Location\")).to.eql(pm.collectionVariables.get(\"baseUrl\") + \"/api/v1/catalogo/actividades/\" + pm.response.json().id));"
                 ]
               }
             }
@@ -885,7 +887,8 @@
                   "pm.test(\"El turista sale del token\", () => pm.expect(pm.response.json().turistaId).to.eql(\"turista1\"));",
                   "pm.test(\"Cantidad = participantes\", () => pm.expect(pm.response.json().cantidadPersonas).to.eql(2));",
                   "pm.test(\"Monto = precio x personas\", () => pm.expect(pm.response.json().montoTotal).to.eql(64000));",
-                  "console.log(\"Traslado:\", JSON.stringify(pm.response.json().trasladoEstimado));"
+                  "console.log(\"Traslado:\", JSON.stringify(pm.response.json().trasladoEstimado));",
+                  "pm.test(\"Location apunta al recurso creado (Apunte 14)\", () => pm.expect(pm.response.headers.get(\"Location\")).to.eql(pm.collectionVariables.get(\"baseUrl\") + \"/api/v1/reservas/\" + pm.response.json().id));"
                 ]
               }
             }

@@ -14,9 +14,11 @@ import ms_reservas.dtos.response.ReservaResponseDTO;
 import ms_reservas.dtos.response.ResultadoRevalidacionDTO;
 import ms_reservas.services.ReservaService;
 import ms_reservas.services.RevalidacionService;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
+import java.net.URI;
 
 import java.util.List;
 
@@ -50,8 +52,8 @@ public class ReservaController {
             @ApiResponse(responseCode = "502", description = "ms-catalogo no responde")
     })
     public ResponseEntity<ReservaResponseDTO> crear(@Valid @RequestBody ReservaRequestDTO dto, HttpServletRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(reservaService.crear(dto, usuario(request)));
+        ReservaResponseDTO creada = reservaService.crear(dto, usuario(request));
+        return ResponseEntity.created(uriDe(creada.getId())).body(creada);
     }
 
     @GetMapping
@@ -125,6 +127,14 @@ public class ReservaController {
     @ApiResponse(responseCode = "200", description = "Resumen de la ejecución con los cambios de estado")
     public ResponseEntity<ResultadoRevalidacionDTO> revalidar() {
         return ResponseEntity.ok(revalidacionService.revalidar());
+    }
+
+    /**
+     * URI del recurso creado para el header Location del 201 (Apunte 14). Gracias a
+     * server.forward-headers-strategy, detrás del gateway queda http://localhost:8080/api/v1/reservas/{id}.
+     */
+    private URI uriDe(Long id) {
+        return ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(id).toUri();
     }
 
     /** Usuario propagado por el gateway, o null si la petición llegó directo (sin gateway). */

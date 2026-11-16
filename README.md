@@ -108,7 +108,7 @@ Detalle en [ms-reservas/README.md](ms-reservas/README.md).
 
 * **Keycloak** emite JWT (OIDC). El **Gateway** es OAuth2 Resource Server: valida la firma contra el JWKS, mapea `realm_access.roles` a `ROLE_*` y aplica RBAC por ruta y método (`401` sin token o token inválido, `403` sin rol).
 * **Propagación de identidad:** el filtro `UserHeadersFilter` del Gateway elimina cualquier `X-User-*` entrante y los vuelve a armar desde el token. `ms-reservas` usa esa identidad para asignar el turista y controlar que solo acceda a sus reservas.
-* **Trusted zone:** en Docker solo se publican el Gateway (`8080`), Keycloak (`8180`), la bandeja web de Mailpit (`8025`) y Postgres en `127.0.0.1:5432`. Los microservicios, OSRM y el SMTP solo son accesibles dentro de `tpi-network`, así que nadie puede saltearse el Gateway.
+* **Trusted zone:** en Docker solo se publican (`ports:`) el Gateway (`8080`), Keycloak (`8180`), la bandeja web de Mailpit (`8025`) y Postgres en `127.0.0.1:5432`. Los microservicios, OSRM y el SMTP solo declaran `expose:` (Apunte 22): su puerto existe dentro de `tpi-network` pero no en el host, así que nadie puede saltearse el Gateway.
 
 ---
 

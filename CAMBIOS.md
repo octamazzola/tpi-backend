@@ -219,6 +219,8 @@ y además suman en la rúbrica:
 | **Healthchecks** en Docker Compose con `condition: service_healthy` | 22 | `depends_on` solo no garantiza que el servicio esté listo |
 | **`@Tag`, `@Operation` y `@ApiResponses`** en los controllers de catálogo y reservas | 17 | Swagger muestra descripción y códigos de respuesta de cada endpoint |
 | **422** para reglas de negocio (edad, temporada, DNI repetido; edad mínima > máxima en catálogo) | 14 | El apunte define 422 para *"datos que no cumplen las reglas de negocio"*. 400 queda para formato y RN05; 409 para cupo |
+| **`201 Created` con header `Location`** al crear reservas, actividades y categorías | 14 | El apunte indica devolver la URI del recurso creado. Detrás del gateway apunta a `http://localhost:8080/...` |
+| **`expose:`** en los servicios internos del compose (catálogo, reservas, geoapi, OSRM, SMTP de Mailpit) | 22 | Documenta qué puerto usa cada servicio dentro de la red sin publicarlo en el host: deja explícita la trusted zone |
 
 También se corrigió que el header `X-Correlation-ID` salía duplicado en la respuesta (el gateway lo copiaba del
 microservicio) y que `/actuator/info` salía vacío.
