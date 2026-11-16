@@ -1,5 +1,7 @@
 package ms_catalogo.dtos;
 
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
@@ -36,8 +38,12 @@ public class ActividadPatchDTO {
     @Min(value = 1, message = "El cupo máximo debe ser al menos de 1 participante")
     private Integer cupoMaximo;
 
+    @DecimalMin(value = "-90.0", message = "La latitud debe estar entre -90 y 90")
+    @DecimalMax(value = "90.0", message = "La latitud debe estar entre -90 y 90")
     private Double latitudInicio;
 
+    @DecimalMin(value = "-180.0", message = "La longitud debe estar entre -180 y 180")
+    @DecimalMax(value = "180.0", message = "La longitud debe estar entre -180 y 180")
     private Double longitudInicio;
 
     @Size(max = 255, message = "La dirección del punto de encuentro no puede superar los 255 caracteres")

@@ -35,9 +35,13 @@ public class ActividadRequestDTO {
     private Integer cupoMaximo;
 
     @NotNull(message = "La latitud de inicio es obligatoria")
+    @DecimalMin(value = "-90.0", message = "La latitud debe estar entre -90 y 90")
+    @DecimalMax(value = "90.0", message = "La latitud debe estar entre -90 y 90")
     private Double latitudInicio;
 
     @NotNull(message = "La longitud de inicio es obligatoria")
+    @DecimalMin(value = "-180.0", message = "La longitud debe estar entre -180 y 180")
+    @DecimalMax(value = "180.0", message = "La longitud debe estar entre -180 y 180")
     private Double longitudInicio;
 
     @Size(max = 255, message = "La dirección del punto de encuentro no puede superar los 255 caracteres")
