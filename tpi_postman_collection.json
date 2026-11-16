@@ -527,7 +527,7 @@
                                                                },
                                                       "body":  {
                                                                    "mode":  "raw",
-                                                                   "raw":  "{\n  \"nombre\": \"Enoturismo {{$timestamp}}\",\n  \"descripcion\": \"Visitas a bodegas y viñedos serranos.\"\n}",
+                                                                   "raw":  "{\n  \"nombre\": \"Enoturismo\",\n  \"descripcion\": \"Visitas a bodegas y viñedos serranos.\"\n}",
                                                                    "options":  {
                                                                                    "raw":  {
                                                                                                "language":  "json"
