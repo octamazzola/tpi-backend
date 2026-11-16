@@ -102,8 +102,8 @@ Todo entra por el `api-gateway` (`http://localhost:8080`), que valida el JWT de 
 | `GET` | `/api/v1/reservas/mis-reservas` | `TURISTA`, `ADMIN` | Reservas del usuario del token. |
 | `GET` | `/api/v1/reservas/{id}` | Autenticado | Detalle. Un `TURISTA` solo ve las propias (`403`). |
 | `GET` | `/api/v1/reservas/actividad/{actividadId}` | `OPERADOR`, `ADMIN` | Contingente de una excursión. |
-| `PUT` | `/api/v1/reservas/{id}/confirmar` | `OPERADOR`, `ADMIN` | `PENDIENTE` → `CONFIRMADA` + voucher por email. |
-| `PUT` | `/api/v1/reservas/{id}/cancelar` | `TURISTA`, `ADMIN` | → `CANCELADA` + email. Un `TURISTA` solo cancela las propias. |
+| `PATCH` | `/api/v1/reservas/{id}/confirmar` | `OPERADOR`, `ADMIN` | `PENDIENTE` → `CONFIRMADA` + voucher por email. |
+| `PATCH` | `/api/v1/reservas/{id}/cancelar` | `TURISTA`, `ADMIN` | → `CANCELADA` + email. Un `TURISTA` solo cancela las propias. |
 | `POST` | `/api/v1/reservas/revalidaciones` | `ADMIN` | Ejecuta la revalidación en el momento. |
 
 ---

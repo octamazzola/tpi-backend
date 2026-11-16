@@ -1014,7 +1014,7 @@
                                   {
                                       "name":  "Operador confirma la reserva (voucher por email)",
                                       "request":  {
-                                                      "method":  "PUT",
+                                                      "method":  "PATCH",
                                                       "header":  [
 
                                                                  ],
@@ -1047,7 +1047,7 @@
                                   {
                                       "name":  "Turista cancela la reserva (libera cupo)",
                                       "request":  {
-                                                      "method":  "PUT",
+                                                      "method":  "PATCH",
                                                       "header":  [
 
                                                                  ],
@@ -1459,7 +1459,7 @@
                                   {
                                       "name":  "RN05 · Cancelar una reserva ya cancelada → 400",
                                       "request":  {
-                                                      "method":  "PUT",
+                                                      "method":  "PATCH",
                                                       "header":  [
 
                                                                  ],
@@ -1498,7 +1498,7 @@
                                   {
                                       "name":  "RN05 · Confirmar una reserva cancelada → 400",
                                       "request":  {
-                                                      "method":  "PUT",
+                                                      "method":  "PATCH",
                                                       "header":  [
 
                                                                  ],
@@ -1576,7 +1576,7 @@
                                   {
                                       "name":  "Otro turista no puede cancelarla → 403",
                                       "request":  {
-                                                      "method":  "PUT",
+                                                      "method":  "PATCH",
                                                       "header":  [
 
                                                                  ],
@@ -1615,7 +1615,7 @@
                                   {
                                       "name":  "Limpieza: turista cancela la reserva de clima",
                                       "request":  {
-                                                      "method":  "PUT",
+                                                      "method":  "PATCH",
                                                       "header":  [
 
                                                                  ],

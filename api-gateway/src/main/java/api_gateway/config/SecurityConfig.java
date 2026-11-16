@@ -70,8 +70,8 @@ public class SecurityConfig {
                         .pathMatchers(HttpMethod.POST, "/api/v1/reservas").hasAnyRole("TURISTA", "ADMIN")
                         .pathMatchers(HttpMethod.GET, "/api/v1/reservas/mis-reservas").hasAnyRole("TURISTA", "ADMIN")
                         .pathMatchers(HttpMethod.GET, "/api/v1/reservas/actividad/**").hasAnyRole("OPERADOR", "PROVEEDOR", "ADMIN")
-                        .pathMatchers(HttpMethod.PUT, "/api/v1/reservas/*/confirmar").hasAnyRole("OPERADOR", "PROVEEDOR", "ADMIN")
-                        .pathMatchers(HttpMethod.PUT, "/api/v1/reservas/*/cancelar").hasAnyRole("TURISTA", "ADMIN")
+                        .pathMatchers(HttpMethod.PATCH, "/api/v1/reservas/*/confirmar").hasAnyRole("OPERADOR", "PROVEEDOR", "ADMIN")
+                        .pathMatchers(HttpMethod.PATCH, "/api/v1/reservas/*/cancelar").hasAnyRole("TURISTA", "ADMIN")
                         .pathMatchers(HttpMethod.GET, "/api/v1/reservas").hasRole("ADMIN")
                         .pathMatchers(HttpMethod.GET, "/api/v1/reservas/**").authenticated()
 
