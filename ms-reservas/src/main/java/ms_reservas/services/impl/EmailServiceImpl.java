@@ -49,14 +49,21 @@ public class EmailServiceImpl implements EmailService {
         };
     }
 
+    private static final String CONTACTO_OPERADOR =
+            "Datos de contacto del operador para coordinar el pago y la confirmación:\n"
+            + "- Email: operador1@example.com\n"
+            + "- Teléfono / WhatsApp: +54 9 351 400-1234\n"
+            + "(Indicá tu número de Reserva #";
+
     private String cuerpo(Reserva r, TipoNotificacion tipo) {
+        String contacto = CONTACTO_OPERADOR + r.getId() + ")";
         String intro = switch (tipo) {
-            case RESERVA_CREADA -> "¡Hola! Registramos tu reserva. Estado actual: " + r.getEstado() + ".";
+            case RESERVA_CREADA -> "¡Hola! Registramos tu reserva #" + r.getId() + ". Estado actual: " + r.getEstado() + ".\n\n" + contacto;
             case RESERVA_CONFIRMADA -> "¡Tu reserva está confirmada! Presentá este correo como voucher en el punto de encuentro.";
             case RESERVA_CANCELADA -> "Tu reserva fue cancelada y los lugares quedaron liberados.";
             case RESERVA_RECHAZADA_POR_CLIMA -> "Lamentablemente el pronóstico no permite realizar la excursión en la fecha elegida.";
             case RECORDATORIO_CONFIRMACION -> "Faltan menos de 48 hs para tu excursión y la reserva sigue PENDIENTE. "
-                    + "Comunicate con el prestador para confirmarla: si no se confirma 24 hs antes, se anulará automáticamente.";
+                    + "Si no se confirma 24 hs antes, se anulará automáticamente.\n\n" + contacto;
         };
 
         String participantes = r.getParticipantes().stream()
