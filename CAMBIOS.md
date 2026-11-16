@@ -181,6 +181,16 @@ Una búsqueda sin resultados da `200` con `[]`, no `404`.
 - `GET /api/v1/reservas` (ADMIN), que el cuestionario daba como pendiente.
 - Filtro `ciudad` en `GET /api/v1/catalogo/actividades`.
 
+### URIs sin verbos
+Confirmar y cancelar tenían el verbo en la URI (`PUT /reservas/{id}/confirmar` y `/cancelar`). REST pide que la URI nombre un recurso con un **sustantivo** y que la acción la diga el método HTTP, así que ahora siguen el formato del ejemplo de la cátedra en la consigna de la tabla de endpoints:
+
+| Antes | Ahora | Roles |
+|---|---|---|
+| `PUT /api/v1/reservas/{id}/confirmar` | `PATCH /api/v1/reservas/{id}/confirmacion` | OPERADOR, ADMIN |
+| `PUT /api/v1/reservas/{id}/cancelar` | `PATCH /api/v1/reservas/{id}/cancelacion` | TURISTA (solo las propias), ADMIN |
+
+PATCH porque modifica solo una parte de la reserva (el estado). No llevan body y la lógica es la misma de antes.
+
 ---
 
 ## 🐳 7. Despliegue
@@ -261,6 +271,7 @@ El código ahora es la referencia, y el documento de alcance pide **comunicar lo
 - **Consulta a catálogo:** reservas usa `GET /actividades/{id}` (necesita precio, coordenadas y restricciones); la ocupación por fecha la calcula reservas.
 - **DER:** participante con `fecha_nacimiento` y `telefono`; reserva con `motivo_estado` y `recordatorio_enviado`; actividad con `ciudad`, edades y temporada.
 - **Sección 07 (APIs):** `GET /reservas` ya implementado; agregar `POST /reservas/revalidaciones`; filtro `ciudad`.
+- **Sección 07 y RN04:** confirmar y cancelar pasan a `PATCH /reservas/{id}/confirmacion` y `PATCH /reservas/{id}/cancelacion` (sección 6).
 - **Sección 09 (common-lib):** campo `message` (no `mensaje`) y el contenido de la sección 4.
 - **Sección 11 (arranque):** un solo comando.
 - **Sección 12 (Postman):** 9 carpetas (sección 9 de este documento).

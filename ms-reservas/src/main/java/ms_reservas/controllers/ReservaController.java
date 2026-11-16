@@ -95,7 +95,7 @@ public class ReservaController {
         return ResponseEntity.ok(reservaService.listarPorActividad(actividadId));
     }
 
-    @PutMapping("/{id}/confirmar")
+    @PatchMapping("/{id}/confirmacion")
     @Operation(summary = "Confirmar una reserva (OPERADOR, ADMIN)",
             description = "PENDIENTE → CONFIRMADA. Envía el voucher por email.")
     @ApiResponses({
@@ -107,7 +107,7 @@ public class ReservaController {
         return ResponseEntity.ok(reservaService.confirmar(id));
     }
 
-    @PutMapping("/{id}/cancelar")
+    @PatchMapping("/{id}/cancelacion")
     @Operation(summary = "Cancelar una reserva (TURISTA titular, ADMIN)",
             description = "PENDIENTE o CONFIRMADA → CANCELADA. Libera el cupo y notifica por email.")
     @ApiResponses({

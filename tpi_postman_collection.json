@@ -989,9 +989,9 @@
         {
           "name": "Operador confirma la reserva (voucher por email)",
           "request": {
-            "method": "PUT",
+            "method": "PATCH",
             "header": [],
-            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_id}}/confirmar",
+            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_id}}/confirmacion",
             "description": "",
             "auth": {
               "type": "bearer",
@@ -1020,9 +1020,9 @@
         {
           "name": "Turista cancela la reserva (libera cupo)",
           "request": {
-            "method": "PUT",
+            "method": "PATCH",
             "header": [],
-            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_id}}/cancelar",
+            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_id}}/cancelacion",
             "description": "",
             "auth": {
               "type": "bearer",
@@ -1430,9 +1430,9 @@
         {
           "name": "RN05 · Cancelar una reserva ya cancelada → 400",
           "request": {
-            "method": "PUT",
+            "method": "PATCH",
             "header": [],
-            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_id}}/cancelar",
+            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_id}}/cancelacion",
             "description": "",
             "auth": {
               "type": "bearer",
@@ -1467,9 +1467,9 @@
         {
           "name": "RN05 · Confirmar una reserva cancelada → 400",
           "request": {
-            "method": "PUT",
+            "method": "PATCH",
             "header": [],
-            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_id}}/confirmar",
+            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_id}}/confirmacion",
             "description": "",
             "auth": {
               "type": "bearer",
@@ -1541,9 +1541,9 @@
         {
           "name": "Otro turista no puede cancelarla → 403",
           "request": {
-            "method": "PUT",
+            "method": "PATCH",
             "header": [],
-            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_clima_id}}/cancelar",
+            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_clima_id}}/cancelacion",
             "description": "",
             "auth": {
               "type": "bearer",
@@ -1578,9 +1578,9 @@
         {
           "name": "Limpieza: turista cancela la reserva de clima",
           "request": {
-            "method": "PUT",
+            "method": "PATCH",
             "header": [],
-            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_clima_id}}/cancelar",
+            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_clima_id}}/cancelacion",
             "description": "Libera el cupo usado en la carpeta 03. Si quedó RECHAZADA_POR_CLIMA responde 400 (estado final), y también es válido.",
             "auth": {
               "type": "bearer",
@@ -2172,9 +2172,9 @@
         {
           "name": "Turista confirma una reserva → 403",
           "request": {
-            "method": "PUT",
+            "method": "PATCH",
             "header": [],
-            "url": "{{baseUrl}}/api/v1/reservas/1/confirmar",
+            "url": "{{baseUrl}}/api/v1/reservas/1/confirmacion",
             "description": "",
             "auth": {
               "type": "bearer",
@@ -2409,9 +2409,9 @@
         {
           "name": "Limpieza: cancelar la reserva de la traza",
           "request": {
-            "method": "PUT",
+            "method": "PATCH",
             "header": [],
-            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_traza_id}}/cancelar",
+            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_traza_id}}/cancelacion",
             "description": "",
             "auth": {
               "type": "bearer",

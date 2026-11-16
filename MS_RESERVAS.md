@@ -305,8 +305,8 @@ Todos bajo el prefijo `/api/v1/reservas`:
 | `GET` | `/api/v1/reservas/mis-reservas` | `TURISTA` | Lista reservas del turista logueado (filtradas por `turistaId`). |
 | `GET` | `/api/v1/reservas/{id}` | `TURISTA`, `OPERADOR` | Detalle completo de una reserva. |
 | `GET` | `/api/v1/reservas/actividad/{actividadId}` | `OPERADOR`, `ADMIN` | Lista todas las reservas de una excursión. |
-| `PUT` | `/api/v1/reservas/{id}/confirmar` | `OPERADOR`, `ADMIN` | Confirma una reserva pendiente. |
-| `PUT` | `/api/v1/reservas/{id}/cancelar` | `TURISTA`, `ADMIN` | Cancela la reserva (`EstadoReserva.CANCELADA`). |
+| `PATCH` | `/api/v1/reservas/{id}/confirmacion` | `OPERADOR`, `ADMIN` | Confirma una reserva pendiente. |
+| `PATCH` | `/api/v1/reservas/{id}/cancelacion` | `TURISTA`, `ADMIN` | Cancela la reserva (`EstadoReserva.CANCELADA`). |
 
 ---
 

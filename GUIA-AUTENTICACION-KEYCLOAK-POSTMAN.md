@@ -78,8 +78,8 @@ Ruta Gateway: `/api/v1/reservas/...`
 | `GET` | `/api/v1/reservas/mis-reservas` | `TURISTA` | Lista las reservas del usuario extraído del token JWT (`sub` / `username`). |
 | `GET` | `/api/v1/reservas/{id}` | `TURISTA`, `OPERADOR` | Detalle de la reserva con itinerario de viaje y pronóstico meteorológico. |
 | `GET` | `/api/v1/reservas/actividad/{actividadId}` | `OPERADOR`, `ADMIN` | Lista contingente de personas anotadas a una salida. |
-| `PUT` | `/api/v1/reservas/{id}/confirmar` | `OPERADOR`, `ADMIN` | Confirma la reserva y dispara mail de confirmación vía Mailpit. |
-| `PUT` | `/api/v1/reservas/{id}/cancelar` | `TURISTA`, `ADMIN` | Cancela la reserva y dispara notificación vía Mailpit. |
+| `PATCH` | `/api/v1/reservas/{id}/confirmacion` | `OPERADOR`, `ADMIN` | Confirma la reserva y dispara mail de confirmación vía Mailpit. |
+| `PATCH` | `/api/v1/reservas/{id}/cancelacion` | `TURISTA`, `ADMIN` | Cancela la reserva y dispara notificación vía Mailpit. |
 | `GET` | `/api/v1/reservas` | `ADMIN` | Auditoría: todas las reservas del sistema. |
 | `POST` | `/api/v1/reservas/revalidaciones` | `ADMIN` | Revalida las reservas vigentes (baja, cupo, temporada, clima, regla de 48 hs). |
 
