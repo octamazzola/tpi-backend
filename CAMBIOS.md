@@ -10,20 +10,25 @@ Los cambios salen de revisar el proyecto contra tres fuentes:
 3. Los **apuntes de la cátedra** (12 a 24).
 
 ### Dónde están los cambios
-Rama **`alineacion-apuntes`**, con 3 commits sobre lo que hoy está en `main` (`098cf95`):
+Rama **`alineacion-apuntes`**, con estos commits sobre lo que hoy está en `main` (el merge `6e63c7b`, que trae `098cf95`):
 
 | Commit | Qué agrega |
 |---|---|
 | `f479791` | Correcciones críticas, reglas de dominio, revalidación, seguridad, common-lib, despliegue y Postman |
 | `4fd5b26` | Alineación con los apuntes: Correlation ID, Actuator, healthchecks, Swagger documentado y 422 |
 | `b494f9e` | `expose:` en el compose y header `Location` en los `201` |
+| `ca883aa` | Este documento |
+| `6c1e2ea` | URIs sin verbos: confirmar y cancelar pasan a `PATCH .../confirmacion` y `.../cancelacion` |
+| (último) | Este documento completo, con la validación final |
 
-### Estado verificado
+### Estado verificado (16/11/2026, sobre el último commit)
 | Chequeo | Resultado |
 |---|---|
-| Tests (`mvn test`) | **23 en verde** |
-| Docker | 8 contenedores; los 4 servicios Spring en estado *healthy* |
-| Postman (colección completa, en orden) | **63 requests, 111 tests OK, 0 fallidos** |
+| Compilación de los 5 módulos (`mvn test`) | **BUILD SUCCESS, 23 tests en verde** (common-lib 2, ms-catalogo 4, ms-reservas 11, geoapi 1, api-gateway 5) |
+| `docker compose config` | Válido. Solo se publican 8080, 8180, 8025 y `127.0.0.1:5432` |
+| Docker | 8 contenedores recreados desde cero; los 4 servicios Spring, Postgres y Mailpit en *healthy* |
+| Postman (colección completa, en orden) | **63 requests, 111 tests OK, 0 fallidos**, dos corridas seguidas (se puede repetir sin reiniciar nada) |
+| Integraciones reales | OSRM calcula la ruta (112 km, 2 hs 2 min), Open-Meteo devuelve el pronóstico, Mailpit recibe los mails y el Correlation ID aparece en todos los servicios |
 
 ---
 
@@ -38,7 +43,7 @@ Rama **`alineacion-apuntes`**, con 3 commits sobre lo que hoy está en `main` (`
    docker compose up --build -d
    ```
    El primer build tarda unos minutos. Con `docker compose ps` se ve cuando todo queda *healthy*.
-3. **Reimportar Postman**: borrar la colección vieja, importar `tpi_postman_collection.json` y correrla entera con el *Collection Runner*.
+3. **Reimportar Postman**: borrar la colección vieja, importar `tpi_postman_collection.json` y correrla entera con el *Collection Runner*. Ojo: la colección vieja usa `PUT .../confirmar` y `.../cancelar`, que ya no existen (sección 6).
 4. **Keycloak ya no se configura a mano**: realm, cliente, roles y usuarios se importan solos.
 
 | URL | Qué es |
@@ -189,7 +194,10 @@ Confirmar y cancelar tenían el verbo en la URI (`PUT /reservas/{id}/confirmar` 
 | `PUT /api/v1/reservas/{id}/confirmar` | `PATCH /api/v1/reservas/{id}/confirmacion` | OPERADOR, ADMIN |
 | `PUT /api/v1/reservas/{id}/cancelar` | `PATCH /api/v1/reservas/{id}/cancelacion` | TURISTA (solo las propias), ADMIN |
 
-PATCH porque modifica solo una parte de la reserva (el estado). No llevan body y la lógica es la misma de antes.
+- **Por qué sustantivo y no infinitivo:** "confirmar" y "cancelar" ya *son* infinitivos, es decir, verbos. La regla pide nombrar la cosa (la confirmación, la cancelación) y dejar la acción al método.
+- **Por qué PATCH y no PUT:** PUT reemplaza el recurso entero; PATCH modifica una parte. Confirmar o cancelar solo cambia el estado de la reserva.
+- **Por qué sub-recursos y no `PATCH /reservas/{id}` con `{"estado": ...}` en el body:** con la ruta separada, el gateway sigue controlando los roles por URL (confirmar: OPERADOR/ADMIN; cancelar: TURISTA/ADMIN). Con el estado en el body, el gateway no podría distinguirlos y ese control tendría que pasar al microservicio.
+- No llevan body y la lógica del service es la misma de antes: solo cambiaron la anotación del controller, las dos reglas del `SecurityConfig`, Postman y los READMEs.
 
 ---
 
@@ -287,3 +295,4 @@ El código ahora es la referencia, y el documento de alcance pide **comunicar lo
 - **¿Qué compartieron en common-lib y qué no?** Lo transversal sí (errores, identidad, logging, OpenAPI). El dominio no, para mantener los servicios independientes.
 - **¿Cómo deja de ser viable una reserva?** Con la revalidación: baja, temporada, cupo, clima y la regla de 48 hs, cada cambio con su `motivoEstado` y su mail.
 - **¿Por qué una búsqueda vacía da 200?** Porque el recurso es la colección y existe: el filtro no encontró resultados.
+- **¿Por qué `PATCH /reservas/{id}/confirmacion` y no `PUT /confirmar`?** La URI nombra recursos con sustantivos y la acción la dice el método. Es PATCH porque solo cambia el estado, y es el formato del ejemplo que da la cátedra en la consigna de la tabla de endpoints.
