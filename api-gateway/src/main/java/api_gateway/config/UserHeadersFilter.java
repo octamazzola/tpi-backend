@@ -91,7 +91,7 @@ public class UserHeadersFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        // Antes de los filtros de ruteo que reenvían la petición al microservicio
-        return Ordered.HIGHEST_PRECEDENCE;
+        // Después de CorrelationIdFilter y antes de los filtros de ruteo que reenvían la petición
+        return Ordered.HIGHEST_PRECEDENCE + 1;
     }
 }

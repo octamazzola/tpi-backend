@@ -2,6 +2,7 @@ package ms_catalogo.services.impl;
 
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import ms_catalogo.dtos.ActividadPatchDTO;
 import ms_catalogo.dtos.ActividadRequestDTO;
 import ms_catalogo.dtos.ActividadResponseDTO;
@@ -9,8 +10,8 @@ import ms_catalogo.dtos.DisponibilidadDTO;
 import ms_catalogo.entities.Actividad;
 import ms_catalogo.entities.Categoria;
 import ms_catalogo.entities.Dificultad;
-import ar.edu.utn.frc.bda.common.exceptions.BadRequestException;
 import ar.edu.utn.frc.bda.common.exceptions.ResourceNotFoundException;
+import ar.edu.utn.frc.bda.common.exceptions.UnprocessableEntityException;
 import ms_catalogo.mappers.ActividadMapper;
 import ms_catalogo.repositories.ActividadRepository;
 import ms_catalogo.repositories.CategoriaRepository;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ActividadServiceImpl implements ActividadService {
 
     private final ActividadRepository actividadRepository;
@@ -47,6 +49,7 @@ public class ActividadServiceImpl implements ActividadService {
     @Override
     @Transactional(readOnly = true)
     public ActividadResponseDTO obtenerPorId(Long id) {
+        log.info("Consulta de la actividad {}", id);
         Actividad actividad = actividadRepository.findByIdAndActivaTrue(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Actividad no encontrada con ID: " + id));
         return actividadMapper.toResponseDTO(actividad);
@@ -161,10 +164,10 @@ public class ActividadServiceImpl implements ActividadService {
      */
     private void validarRestricciones(Integer edadMinima, Integer edadMaxima, Integer mesInicio, Integer mesFin) {
         if (edadMinima != null && edadMaxima != null && edadMinima > edadMaxima) {
-            throw new BadRequestException("La edad mínima no puede ser mayor que la edad máxima");
+            throw new UnprocessableEntityException("La edad mínima no puede ser mayor que la edad máxima");
         }
         if ((mesInicio == null) != (mesFin == null)) {
-            throw new BadRequestException("La temporada debe indicar mes de inicio y mes de fin, o ninguno de los dos");
+            throw new UnprocessableEntityException("La temporada debe indicar mes de inicio y mes de fin, o ninguno de los dos");
         }
     }
 
@@ -176,6 +179,7 @@ public class ActividadServiceImpl implements ActividadService {
 
         // Baja lógica: se cambia activa a false para no romper integridad histórica con reservas
         actividad.setActiva(false);
+        log.info("Actividad {} dada de baja (baja lógica)", id);
         actividadRepository.save(actividad);
     }
 }

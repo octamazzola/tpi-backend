@@ -1,6 +1,11 @@
 package ms_reservas.controllers;
 
 import ar.edu.utn.frc.bda.common.security.UsuarioAutenticado;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,85 +30,99 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/reservas")
 @RequiredArgsConstructor
+@Tag(name = "Reservas", description = "Proceso central: crear, consultar, confirmar, cancelar y revalidar reservas")
 public class ReservaController {
 
     private final ReservaService reservaService;
     private final RevalidacionService revalidacionService;
 
-    /**
-     * POST /api/v1/reservas
-     * Crea una reserva ejecutando toda la orquestación (TURISTA).
-     */
     @PostMapping
+    @Operation(summary = "Crear una reserva (TURISTA, ADMIN)",
+            description = "Orquesta catálogo (actividad y restricciones), Open-Meteo (si requiere buen clima) y geoapi "
+                    + "(traslado). Queda PENDIENTE o RECHAZADA_POR_CLIMA y se notifica por email. "
+                    + "El turista y su email salen del token JWT.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Reserva registrada"),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos (formato, campos faltantes, fecha pasada)"),
+            @ApiResponse(responseCode = "404", description = "La actividad no existe o fue dada de baja"),
+            @ApiResponse(responseCode = "409", description = "Cupo insuficiente para la fecha (RN01)"),
+            @ApiResponse(responseCode = "422", description = "No cumple las reglas de la actividad: edad, temporada o DNI repetido"),
+            @ApiResponse(responseCode = "502", description = "ms-catalogo no responde")
+    })
     public ResponseEntity<ReservaResponseDTO> crear(@Valid @RequestBody ReservaRequestDTO dto, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(reservaService.crear(dto, usuario(request)));
     }
 
-    /**
-     * GET /api/v1/reservas
-     * Lista la totalidad de las reservas del sistema (ADMIN).
-     */
     @GetMapping
+    @Operation(summary = "Listar todas las reservas (ADMIN)", description = "Auditoría global del sistema.")
+    @ApiResponse(responseCode = "200", description = "Listado de reservas")
     public ResponseEntity<List<ReservaResponseDTO>> listarTodas() {
         return ResponseEntity.ok(reservaService.listarTodas());
     }
 
-    /**
-     * GET /api/v1/reservas/mis-reservas
-     * Lista las reservas del turista autenticado (TURISTA). El turista sale del token JWT;
-     * el parámetro turistaId solo se usa en pruebas locales sin gateway.
-     */
     @GetMapping("/mis-reservas")
+    @Operation(summary = "Listar mis reservas (TURISTA, ADMIN)",
+            description = "Reservas del usuario del token, de la más próxima a la más lejana.")
+    @ApiResponse(responseCode = "200", description = "Reservas del turista autenticado")
     public ResponseEntity<List<ReservaResponseDTO>> misReservas(
+            @Parameter(description = "Solo para pruebas locales sin gateway: vía gateway se ignora y se usa el token")
             @RequestParam(required = false, defaultValue = "turista1") String turistaId,
             HttpServletRequest request) {
         String turista = UsuarioAutenticado.desde(request).map(UsuarioAutenticado::username).orElse(turistaId);
         return ResponseEntity.ok(reservaService.listarPorTurista(turista));
     }
 
-    /**
-     * GET /api/v1/reservas/{id}
-     * Detalle completo de una reserva. Un TURISTA solo puede ver las propias.
-     */
     @GetMapping("/{id}")
+    @Operation(summary = "Consultar una reserva (autenticado)",
+            description = "Detalle con participantes, monto, traslado y clima. Un TURISTA solo puede ver las propias.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Reserva encontrada"),
+            @ApiResponse(responseCode = "403", description = "La reserva pertenece a otro turista"),
+            @ApiResponse(responseCode = "404", description = "La reserva no existe")
+    })
     public ResponseEntity<ReservaResponseDTO> obtenerPorId(@PathVariable Long id, HttpServletRequest request) {
         return ResponseEntity.ok(reservaService.obtenerPorId(id, usuario(request)));
     }
 
-    /**
-     * GET /api/v1/reservas/actividad/{actividadId}
-     * Lista todas las reservas de una excursión (OPERADOR, ADMIN).
-     */
     @GetMapping("/actividad/{actividadId}")
+    @Operation(summary = "Listar reservas de una actividad (OPERADOR, ADMIN)",
+            description = "Contingente de una excursión, ordenado por fecha.")
+    @ApiResponse(responseCode = "200", description = "Reservas de la actividad")
     public ResponseEntity<List<ReservaResponseDTO>> listarPorActividad(@PathVariable Long actividadId) {
         return ResponseEntity.ok(reservaService.listarPorActividad(actividadId));
     }
 
-    /**
-     * PUT /api/v1/reservas/{id}/confirmar
-     * Confirma una reserva pendiente (OPERADOR, ADMIN).
-     */
     @PutMapping("/{id}/confirmar")
+    @Operation(summary = "Confirmar una reserva (OPERADOR, ADMIN)",
+            description = "PENDIENTE → CONFIRMADA. Envía el voucher por email.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Reserva confirmada"),
+            @ApiResponse(responseCode = "400", description = "La reserva no está PENDIENTE (RN05)"),
+            @ApiResponse(responseCode = "404", description = "La reserva no existe")
+    })
     public ResponseEntity<ReservaResponseDTO> confirmar(@PathVariable Long id) {
         return ResponseEntity.ok(reservaService.confirmar(id));
     }
 
-    /**
-     * PUT /api/v1/reservas/{id}/cancelar
-     * Cancela la reserva (TURISTA solo las propias, ADMIN cualquiera).
-     */
     @PutMapping("/{id}/cancelar")
+    @Operation(summary = "Cancelar una reserva (TURISTA titular, ADMIN)",
+            description = "PENDIENTE o CONFIRMADA → CANCELADA. Libera el cupo y notifica por email.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Reserva cancelada"),
+            @ApiResponse(responseCode = "400", description = "Ya está en un estado final (RN04, RN05)"),
+            @ApiResponse(responseCode = "403", description = "La reserva pertenece a otro turista"),
+            @ApiResponse(responseCode = "404", description = "La reserva no existe")
+    })
     public ResponseEntity<ReservaResponseDTO> cancelar(@PathVariable Long id, HttpServletRequest request) {
         return ResponseEntity.ok(reservaService.cancelar(id, usuario(request)));
     }
 
-    /**
-     * POST /api/v1/reservas/revalidaciones
-     * Ejecuta en el momento la revalidación de reservas vigentes (ADMIN). Normalmente corre sola
-     * cada hora; este endpoint permite dispararla para auditoría o para la demo.
-     */
     @PostMapping("/revalidaciones")
+    @Operation(summary = "Revalidar reservas vigentes (ADMIN)",
+            description = "Ejecuta en el momento la revalidación que corre sola cada hora: baja de actividad, "
+                    + "cambio de temporada, reducción de cupo, pronóstico adverso y regla de 48 hs.")
+    @ApiResponse(responseCode = "200", description = "Resumen de la ejecución con los cambios de estado")
     public ResponseEntity<ResultadoRevalidacionDTO> revalidar() {
         return ResponseEntity.ok(revalidacionService.revalidar());
     }

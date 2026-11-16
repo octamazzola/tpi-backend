@@ -1,5 +1,9 @@
 package ms_catalogo.controllers;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import ms_catalogo.dtos.CategoriaRequestDTO;
@@ -23,6 +27,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/catalogo/categorias")
 @RequiredArgsConstructor
+@Tag(name = "Categorías", description = "Clasificación de las excursiones (gestión exclusiva del ADMIN)")
 public class CategoriaController {
 
     private final CategoriaService categoriaService;
@@ -33,6 +38,8 @@ public class CategoriaController {
      * Retorna HTTP 200 OK.
      */
     @GetMapping
+    @Operation(summary = "Listar categorías (público)")
+    @ApiResponse(responseCode = "200", description = "Listado de categorías")
     public ResponseEntity<List<CategoriaResponseDTO>> obtenerTodas() {
         return ResponseEntity.ok(categoriaService.obtenerTodas());
     }
@@ -43,6 +50,11 @@ public class CategoriaController {
      * Si no existe, el Service lanzará ResourceNotFoundException (HTTP 404).
      */
     @GetMapping("/{id}")
+    @Operation(summary = "Consultar una categoría (público)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Categoría encontrada"),
+            @ApiResponse(responseCode = "404", description = "La categoría no existe")
+    })
     public ResponseEntity<CategoriaResponseDTO> obtenerPorId(@PathVariable Long id) {
         return ResponseEntity.ok(categoriaService.obtenerPorId(id));
     }
@@ -56,6 +68,11 @@ public class CategoriaController {
      * Retorna HTTP 201 Created junto con la entidad recién creada.
      */
     @PostMapping
+    @Operation(summary = "Crear una categoría (ADMIN)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Categoría creada"),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos o nombre repetido")
+    })
     public ResponseEntity<CategoriaResponseDTO> crear(@Valid @RequestBody CategoriaRequestDTO dto) {
         CategoriaResponseDTO creada = categoriaService.crear(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(creada);
@@ -67,6 +84,13 @@ public class CategoriaController {
      * Retorna HTTP 204 No Content en caso de éxito.
      */
     @DeleteMapping("/{id}")
+    @Operation(summary = "Eliminar una categoría (ADMIN)",
+            description = "Solo si no tiene actividades asociadas.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Categoría eliminada"),
+            @ApiResponse(responseCode = "404", description = "La categoría no existe"),
+            @ApiResponse(responseCode = "409", description = "Tiene actividades asociadas")
+    })
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
         categoriaService.eliminar(id);
         return ResponseEntity.noContent().build();

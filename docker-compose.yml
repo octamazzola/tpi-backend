@@ -103,6 +103,13 @@ services:
       OSRM_BASE_URL: http://osrm:5000
     depends_on:
       - osrm
+    # Listo cuando Actuator responde UP (Apunte 24). wget viene incluido en la imagen Alpine.
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health | grep -q '\"status\":\"UP\"'" ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
     restart: unless-stopped
     networks:
       - tpi-network
@@ -130,6 +137,13 @@ services:
     depends_on:
       postgres-db:
         condition: service_healthy
+    # Listo cuando Actuator responde UP (incluye el chequeo de la conexión a Postgres)
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health | grep -q '\"status\":\"UP\"'" ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
     restart: unless-stopped
     networks:
       - tpi-network
@@ -161,12 +175,19 @@ services:
     depends_on:
       postgres-db:
         condition: service_healthy
+      # Apunte 22: depends_on solo no garantiza que el servicio esté listo; por eso se espera el healthcheck
       ms-catalogo:
-        condition: service_started
+        condition: service_healthy
       geoapi:
-        condition: service_started
+        condition: service_healthy
       mailpit:
         condition: service_started
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health | grep -q '\"status\":\"UP\"'" ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
     restart: unless-stopped
     networks:
       - tpi-network
@@ -191,10 +212,20 @@ services:
       # Claves públicas de Keycloak para validar la firma de los JWT
       KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/tpi-realm/protocol/openid-connect/certs
     depends_on:
-      - ms-catalogo
-      - ms-reservas
-      - geoapi
-      - keycloak
+      ms-catalogo:
+        condition: service_healthy
+      ms-reservas:
+        condition: service_healthy
+      geoapi:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"'" ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     restart: unless-stopped
     networks:
       - tpi-network

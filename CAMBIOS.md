@@ -205,3 +205,29 @@ El código ahora es la referencia. Para que el documento coincida:
 - **¿Qué compartieron en `common-lib` y qué no?** Lo transversal (errores, contrato de identidad, OpenAPI) sí. El dominio (entidades, reglas) no, para mantener independientes los servicios.
 - **¿Por qué una búsqueda sin resultados da 200 y no 404?** Porque el recurso es la colección y existe: el filtro simplemente no encontró nada.
 - **¿Cómo deja de ser viable una reserva?** Con la revalidación programada: baja, temporada, cupo, clima y la regla de 48 hs. Cada cambio queda con su `motivoEstado` y se notifica por mail.
+
+---
+
+## 🎯 10. Alineación con los apuntes de la cátedra (rama `alineacion-apuntes`)
+Después de comparar el proyecto con los apuntes 12 a 24 se aplicaron los cambios que están en el material
+y además suman en la rúbrica:
+
+| Cambio | Apunte | Por qué |
+|---|---|---|
+| **Correlation ID** (`X-Correlation-ID`): lo genera el gateway, cada servicio lo pone en el MDC del log, `RestClient` lo propaga y llega también al hilo del mail asincrónico | 23 y 24 | INT-01 pide *"trazabilidad verificable"*: ahora una reserva se sigue en los logs de gateway, reservas, catálogo y geoapi con un solo identificador |
+| **Actuator** (`health`, `info`, `metrics`) en todos los servicios | 24 | Monitoreo del estado de cada servicio |
+| **Healthchecks** en Docker Compose con `condition: service_healthy` | 22 | `depends_on` solo no garantiza que el servicio esté listo |
+| **`@Tag`, `@Operation` y `@ApiResponses`** en los controllers de catálogo y reservas | 17 | Swagger muestra descripción y códigos de respuesta de cada endpoint |
+| **422** para reglas de negocio (edad, temporada, DNI repetido; edad mínima > máxima en catálogo) | 14 | El apunte define 422 para *"datos que no cumplen las reglas de negocio"*. 400 queda para formato y RN05; 409 para cupo |
+
+También se corrigió que el header `X-Correlation-ID` salía duplicado en la respuesta (el gateway lo copiaba del
+microservicio) y que `/actuator/info` salía vacío.
+
+**Verificación:** 23 tests unitarios en verde y la colección de Postman (ahora con la carpeta
+**08 · Trazabilidad y monitoreo**) da **63 requests y 108 tests OK** contra Docker.
+
+**Para probar la traza en la defensa:** ejecutar en Postman *"El Correlation ID enviado se respeta de punta a punta"*
+(manda `X-Correlation-ID: demo-defensa`) y después:
+```powershell
+docker compose logs | findstr demo-defensa
+```

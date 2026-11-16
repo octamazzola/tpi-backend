@@ -41,6 +41,12 @@
 			<version>2.5.0</version>
 		</dependency>
 
+		<!-- Actuator (Apunte 24): /actuator/health, /info y /metrics para monitoreo y healthchecks de Docker -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
 		<!-- Utilidades -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>

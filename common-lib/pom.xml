@@ -64,6 +64,13 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Tests de los componentes compartidos (filtro de Correlation ID) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Lombok para evitar boilerplate de getters/setters -->
         <dependency>
             <groupId>org.projectlombok</groupId>

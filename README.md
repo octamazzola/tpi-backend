@@ -90,7 +90,7 @@ Detalle completo en [ROLES-Y-PERMISOS-RBAC.md](ROLES-Y-PERMISOS-RBAC.md).
 `POST /api/v1/reservas` (turista autenticado):
 1. El **Gateway** valida el JWT y el rol, y propaga la identidad en headers `X-User-*` (el turista no puede falsificarla).
 2. **ms-reservas → ms-catalogo:** la actividad existe y está activa (`404`).
-3. **Reglas locales:** temporada de la actividad y edad de cada participante el día de la excursión (`400`).
+3. **Reglas locales:** temporada de la actividad, edad de cada participante el día de la excursión y DNI sin repetir (`422`: datos válidos que no cumplen una regla de negocio, Apunte 14).
 4. **RN01 cupo:** participantes ya reservados para la fecha + nuevos ≤ cupo (`409`).
 5. **RN02 clima → Open-Meteo:** si la actividad requiere buen clima y llueve > 70 % o hay tormenta, la reserva queda `RECHAZADA_POR_CLIMA`.
 6. **RN03 traslado → geoapi/OSRM:** distancia y duración desde el origen del turista.
@@ -112,11 +112,21 @@ Detalle en [ms-reservas/README.md](ms-reservas/README.md).
 
 ---
 
+## 📈 Trazabilidad y monitoreo (Apuntes 23 y 24)
+
+* **Correlation ID:** el gateway asigna un `X-Correlation-ID` a cada petición (o respeta el que manda el cliente), lo reenvía y lo devuelve en la respuesta. Cada microservicio lo guarda en el MDC y aparece en todas sus líneas de log: `INFO [<id>] ...`. `ms-reservas` lo propaga a catálogo y geoapi con un interceptor de `RestClient` y al hilo del mail asincrónico. Para seguir una operación completa:
+  ```powershell
+  docker compose logs | findstr <correlation-id>
+  ```
+* **Actuator:** `/actuator/health`, `/info` y `/metrics` en cada servicio. Solo el `health` e `info` del gateway son accesibles desde afuera; el resto queda dentro de la red de Docker.
+* **Healthchecks en Docker Compose:** cada servicio Spring se marca *healthy* cuando Actuator responde `UP`, y los que dependen de él esperan con `condition: service_healthy` (el Apunte 22 advierte que `depends_on` solo no garantiza que el servicio esté listo). `docker compose ps` muestra el estado.
+
 ## 📦 6. Componente común (`common-lib`)
 
 JAR Maven (`ar.edu.utn.frc.bda:common-lib`) instalado en `.m2` y usado por `ms-catalogo`, `ms-reservas` y `api-gateway`:
-* `exceptions.GlobalExceptionHandler` (auto-configurado): respuestas uniformes `400`, `403`, `404`, `405`, `409`, `502`, `500`.
-* `exceptions.*`: `BadRequestException`, `ResourceNotFoundException`, `ConflictException`, `ForbiddenException`.
+* `exceptions.GlobalExceptionHandler` (auto-configurado): respuestas uniformes `400`, `403`, `404`, `405`, `409`, `422`, `502`, `500`.
+* `exceptions.*`: `BadRequestException` (400), `ForbiddenException` (403), `ResourceNotFoundException` (404), `ConflictException` (409), `UnprocessableEntityException` (422).
+* `logging.CorrelationIdFilter` (auto-configurado): toma el `X-Correlation-ID` de cada petición y lo pone en el MDC del log.
 * `dtos.ErrorResponseDTO`: `{ "timestamp", "status", "error", "message", "path", "validaciones" }`.
 * `security.UserHeaders` / `security.UsuarioAutenticado`: contrato de identidad entre el Gateway y los microservicios.
 * `config.CommonOpenApiAutoConfiguration`: metadatos OpenAPI y esquema Bearer JWT para Swagger.

@@ -39,9 +39,9 @@
 |---|---|---|
 | 0. Identidad | El turista (`X-User-Name`) y su email (`X-User-Email`) salen del JWT, no del cuerpo. | — |
 | 1. Catálogo | La actividad debe existir y estar activa. | `404` (o `502` si catálogo no responde) |
-| 2. Temporada | La fecha debe caer entre `mesInicioTemporada` y `mesFinTemporada` (admite temporadas que cruzan el año). | `400` |
-| 2. Edad | Cada participante debe cumplir `edadMinima` / `edadMaxima` **el día de la excursión**. | `400` |
-| 2. DNI | No puede haber DNI repetidos en la misma reserva. | `400` |
+| 2. Temporada | La fecha debe caer entre `mesInicioTemporada` y `mesFinTemporada` (admite temporadas que cruzan el año). | `422` |
+| 2. Edad | Cada participante debe cumplir `edadMinima` / `edadMaxima` **el día de la excursión**. | `422` |
+| 2. DNI | No puede haber DNI repetidos en la misma reserva. | `422` |
 | 3. RN01 Cupo | `ocupados + participantes <= cupoMaximo` para esa fecha. | `409 Conflict` |
 | 4. RN02 Clima | Lluvia `> 70 %` o `weather_code >= 61` → `RECHAZADA_POR_CLIMA` (no ocupa cupo). | Open-Meteo caído o fecha a +16 días: sigue sin alerta |
 | 5. RN03 Traslado | Distancia y duración desde el origen del turista. | geoapi/OSRM caído: `"No disponible"` |
@@ -145,6 +145,16 @@ Todo entra por el `api-gateway` (`http://localhost:8080`), que valida el JWT de 
   "fechaCreacion": "2026-11-12T16:00:00"
 }
 ```
+
+### Códigos de error (Apunte 14)
+| Código | Cuándo |
+|---|---|
+| `400` | Datos mal formados o incompletos, y transiciones de estado no permitidas (RN05) |
+| `403` | La reserva pertenece a otro turista |
+| `404` | La reserva o la actividad no existen |
+| `409` | Cupo insuficiente para la fecha (RN01) |
+| `422` | Datos válidos que no cumplen una regla de negocio: edad, temporada, DNI repetido |
+| `502` | ms-catalogo no responde |
 
 ### Errores
 Formato común de `common-lib`: `{ "timestamp", "status", "error", "message", "path", "validaciones" }`.

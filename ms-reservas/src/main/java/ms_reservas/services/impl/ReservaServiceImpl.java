@@ -4,6 +4,7 @@ import ar.edu.utn.frc.bda.common.exceptions.BadRequestException;
 import ar.edu.utn.frc.bda.common.exceptions.ConflictException;
 import ar.edu.utn.frc.bda.common.exceptions.ForbiddenException;
 import ar.edu.utn.frc.bda.common.exceptions.ResourceNotFoundException;
+import ar.edu.utn.frc.bda.common.exceptions.UnprocessableEntityException;
 import ar.edu.utn.frc.bda.common.security.UsuarioAutenticado;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,21 +60,23 @@ public class ReservaServiceImpl implements ReservaService {
         // 0. Identidad: si viene del gateway se usa el JWT; si no (prueba local), el body
         String turistaId = resolverTuristaId(dto, usuario);
         String emailTurista = resolverEmail(dto, usuario);
+        log.info("Nueva reserva: turista={} actividad={} fecha={} participantes={}",
+                turistaId, dto.getActividadId(), dto.getFechaExcursion(), dto.getParticipantes().size());
         validarDnisUnicos(dto.getParticipantes());
         int cantidadPersonas = dto.getParticipantes().size();
 
         // 1. Validar que la actividad exista y esté activa (404 si no)
         ActividadCatalogoDTO actividad = catalogoClient.obtenerActividad(dto.getActividadId());
 
-        // 2. Restricciones de la actividad: temporada y edad de cada participante (400 si no cumple)
+        // 2. Restricciones de la actividad: temporada y edad de cada participante (422 si no cumple)
         if (!ReglasActividad.enTemporada(actividad, dto.getFechaExcursion())) {
-            throw new BadRequestException("La actividad no se realiza en la fecha elegida: su temporada va del mes "
+            throw new UnprocessableEntityException("La actividad no se realiza en la fecha elegida: su temporada va del mes "
                     + actividad.mesInicioTemporada() + " al mes " + actividad.mesFinTemporada());
         }
         for (ParticipanteDTO p : dto.getParticipantes()) {
             ReglasActividad.validarEdad(actividad, p.getNombre(), p.getFechaNacimiento(), dto.getFechaExcursion())
                     .ifPresent(motivo -> {
-                        throw new BadRequestException("Restricción de edad: " + motivo);
+                        throw new UnprocessableEntityException("Restricción de edad: " + motivo);
                     });
         }
 
@@ -128,6 +131,8 @@ public class ReservaServiceImpl implements ReservaService {
                 .fechaCreacion(LocalDateTime.now(clock))
                 .build();
         Reserva guardada = reservaRepository.save(reserva);
+        log.info("Reserva {} registrada en estado {} (alerta climática: {}, traslado: {})",
+                guardada.getId(), guardada.getEstado(), alertaClimatica, guardada.getDuracionEstimadaViaje());
 
         // 8. Notificar por email (asincrónico: un error de envío no afecta la reserva)
         emailService.notificar(guardada, TipoNotificacion.RESERVA_CREADA);
@@ -179,6 +184,7 @@ public class ReservaServiceImpl implements ReservaService {
         }
         reserva.setEstado(EstadoReserva.CONFIRMADA);
         reserva.setMotivoEstado("Confirmada por el prestador");
+        log.info("Reserva {} confirmada", id);
         Reserva guardada = reservaRepository.save(reserva);
         emailService.notificar(guardada, TipoNotificacion.RESERVA_CONFIRMADA);
         return reservaMapper.toResponseDTO(guardada);
@@ -199,6 +205,7 @@ public class ReservaServiceImpl implements ReservaService {
         reserva.setMotivoEstado(usuario != null && usuario.esAdmin()
                 ? "Anulada por el administrador"
                 : "Cancelada por el turista");
+        log.info("Reserva {} cancelada: {}", id, reserva.getMotivoEstado());
         Reserva guardada = reservaRepository.save(reserva);
         emailService.notificar(guardada, TipoNotificacion.RESERVA_CANCELADA);
         return reservaMapper.toResponseDTO(guardada);
@@ -221,7 +228,7 @@ public class ReservaServiceImpl implements ReservaService {
         Set<String> dnis = new HashSet<>();
         for (ParticipanteDTO p : participantes) {
             if (!dnis.add(p.getDni())) {
-                throw new BadRequestException("El DNI " + p.getDni() + " está repetido entre los participantes");
+                throw new UnprocessableEntityException("El DNI " + p.getDni() + " está repetido entre los participantes");
             }
         }
     }

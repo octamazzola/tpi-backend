@@ -1,5 +1,6 @@
 package utnfc.isi.back.spring.geoapi.service.impl;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -16,6 +17,7 @@ import java.util.Locale;
 /**
  * Implementación de RutaService comunicándose con el motor OSRM vía RestClient.
  */
+@Slf4j
 @Service
 public class RutaServiceImpl implements RutaService {
 
@@ -51,7 +53,7 @@ public class RutaServiceImpl implements RutaService {
                     .retrieve()
                     .body(OsrmRouteResponse.class);
         } catch (RestClientException ex) {
-            ex.printStackTrace();
+            log.warn("OSRM no respondió para {}: {}", coordinates, ex.getMessage());
             throw new OsrmUnavailableException("No fue posible consultar el motor de rutas OSRM: " + ex.getMessage(), ex);
         }
 
@@ -62,6 +64,7 @@ public class RutaServiceImpl implements RutaService {
         }
 
         OsrmRouteResponse.Route route = osrm.routes().getFirst();
+        log.info("Ruta calculada {}: {} m, {} s", coordinates, Math.round(route.distance()), Math.round(route.duration()));
         long seconds = Math.max(0, Math.round(route.duration()));
         long minutes = Math.round(seconds / 60.0);
         long hours = minutes / 60;

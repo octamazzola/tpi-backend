@@ -718,7 +718,7 @@
           ]
         },
         {
-          "name": "Validación: edad mínima > máxima → 400",
+          "name": "Regla: edad mínima > máxima → 422",
           "request": {
             "method": "POST",
             "header": [
@@ -728,7 +728,7 @@
               }
             ],
             "url": "{{baseUrl}}/api/v1/catalogo/actividades",
-            "description": "",
+            "description": "Datos bien formados que no cumplen una regla de negocio: 422 (Apunte 14).",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -755,7 +755,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Responde 422\", () => pm.response.to.have.status(422));",
                   "",
                   "pm.test(\"Error con formato estándar de common-lib\", () => {",
                   "    const e = pm.response.json();",
@@ -1097,7 +1097,7 @@
     },
     {
       "name": "04 · Reservas: reglas de negocio (escenarios negativos)",
-      "description": "RN01 cupo (409), restricciones de edad y temporada (400), RN05 transiciones inválidas (400),\nvalidación de datos (400) y privacidad entre turistas (403).",
+      "description": "RN01 cupo (409), restricciones de edad, temporada y DNI repetido (422, reglas de negocio según el\nApunte 14), RN05 transiciones inválidas (400), validación de formato (400) y privacidad entre turistas (403).",
       "item": [
         {
           "name": "RN01 · Cupo insuficiente → 409",
@@ -1164,7 +1164,7 @@
           ]
         },
         {
-          "name": "Edad mínima no cumplida → 400",
+          "name": "Edad mínima no cumplida → 422",
           "request": {
             "method": "POST",
             "header": [
@@ -1174,7 +1174,7 @@
               }
             ],
             "url": "{{baseUrl}}/api/v1/reservas",
-            "description": "Champaquí exige 14 años: Sofía (2014) no cumple.",
+            "description": "Champaquí exige 14 años: Sofía (2014) no cumple. Regla de negocio → 422 (Apunte 14).",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1201,7 +1201,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Responde 422\", () => pm.response.to.have.status(422));",
                   "",
                   "pm.test(\"Error con formato estándar de common-lib\", () => {",
                   "    const e = pm.response.json();",
@@ -1217,7 +1217,7 @@
           ]
         },
         {
-          "name": "Fuera de temporada → 400",
+          "name": "Fuera de temporada → 422",
           "request": {
             "method": "POST",
             "header": [
@@ -1254,7 +1254,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Responde 422\", () => pm.response.to.have.status(422));",
                   "",
                   "pm.test(\"Error con formato estándar de common-lib\", () => {",
                   "    const e = pm.response.json();",
@@ -1270,7 +1270,7 @@
           ]
         },
         {
-          "name": "DNI repetido entre participantes → 400",
+          "name": "DNI repetido entre participantes → 422",
           "request": {
             "method": "POST",
             "header": [
@@ -1307,7 +1307,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Responde 422\", () => pm.response.to.have.status(422));",
                   "",
                   "pm.test(\"Error con formato estándar de common-lib\", () => {",
                   "    const e = pm.response.json();",
@@ -2323,6 +2323,141 @@
           ]
         }
       ]
+    },
+    {
+      "name": "08 · Trazabilidad y monitoreo",
+      "description": "Correlation ID (Apuntes 23 y 24): el gateway asigna un `X-Correlation-ID` a cada petición, lo propaga a los\nmicroservicios y lo devuelve en la respuesta. Con ese valor se buscan los logs de la operación en cada servicio:\n`docker compose logs | findstr <id>` (Windows) o `docker compose logs | grep <id>`.\nActuator (Apunte 24): `/actuator/health` del gateway es público.",
+      "item": [
+        {
+          "name": "Cada respuesta trae un Correlation ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/catalogo/actividades",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Header X-Correlation-ID presente\", () => pm.expect(pm.response.headers.get(\"X-Correlation-ID\")).to.be.a(\"string\"));",
+                  "console.log(\"Correlation ID:\", pm.response.headers.get(\"X-Correlation-ID\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "El Correlation ID enviado se respeta de punta a punta",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "demo-defensa"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/reservas",
+            "description": "Se manda `X-Correlation-ID: demo-defensa`. Después: `docker compose logs | findstr demo-defensa` muestra la misma operación en gateway, ms-reservas, ms-catalogo y geoapi.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actividadId\": 3,\n  \"fechaExcursion\": \"{{fecha_excursion}}\",\n  \"participantes\": [\n    {\n      \"nombre\": \"Lucía Fernández\",\n      \"dni\": \"38123456\",\n      \"fechaNacimiento\": \"1994-05-12\",\n      \"telefono\": \"+54 351 555-1234\"\n    }\n  ],\n  \"origenTurista\": {\n    \"latitud\": -31.4135,\n    \"longitud\": -64.18105,\n    \"direccion\": \"Hotel Sheraton, Córdoba Capital\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Devuelve el mismo Correlation ID\", () => pm.expect(pm.response.headers.get(\"X-Correlation-ID\")).to.eql(\"demo-defensa\"));",
+                  "pm.collectionVariables.set(\"reserva_traza_id\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Limpieza: cancelar la reserva de la traza",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_traza_id}}/cancelar",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Health del gateway (Actuator)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/actuator/health",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Estado UP\", () => pm.expect(pm.response.json().status).to.eql(\"UP\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "variable": [
@@ -2384,6 +2519,10 @@
     },
     {
       "key": "reserva_revalidacion_id",
+      "value": ""
+    },
+    {
+      "key": "reserva_traza_id",
       "value": ""
     },
     {
