@@ -52,6 +52,7 @@ public class ReservaMapper {
                         .build())
                 .alertaClimatica(r.getAlertaClimatica())
                 .descripcionClima(r.getDescripcionClima())
+                .recordatorioEnviado(r.getRecordatorioEnviado())
                 .fechaCreacion(r.getFechaCreacion())
                 .build();
     }

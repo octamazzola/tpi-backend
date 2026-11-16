@@ -31,5 +31,6 @@ public class ReservaResponseDTO {
     private TrasladoEstimadoDTO trasladoEstimado;
     private Boolean alertaClimatica;
     private String descripcionClima;
+    private Boolean recordatorioEnviado;
     private LocalDateTime fechaCreacion;
 }
