@@ -1,0 +1,13 @@
+# El contexto de build es la raíz: excluimos todo lo pesado o innecesario
+# (osrm-data pesa +4 GB y el zip 1.6 GB: sin esto, cada build mandaría todo al daemon de Docker)
+osrm-data/
+osrm-data.zip
+*.osm.pbf
+**/target/
+.git/
+.idea/
+.vscode/
+**/*.md
+*.json
+keycloak/
+init-db/

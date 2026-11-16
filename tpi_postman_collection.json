@@ -1,1212 +1,2402 @@
 {
-    "info": {
-        "_postman_id": "tpi-backend-complete-collection-2026",
-        "name": "TPI Backend - Suite Completa de Microservicios (RBAC)",
-        "description": "ColecciÃ³n completa y organizada para probar todos los microservicios (CatÃ¡logo, Reservas, GeoAPI/OSRM) con autenticaciÃ³n basada en roles (Turista, Proveedor/Operador y Administrador) a travÃ©s de Keycloak y Spring Cloud Gateway.",
-        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  "info": {
+    "_postman_id": "202f086a-5a62-57e4-a413-e83fe7081b4d",
+    "name": "TPI Backend · Actividades Turísticas y Excursiones",
+    "description": "Colección ejecutable del TPI (UTN FRC - Backend de Aplicaciones 2026).\n\n**Cómo usarla**\n1. Levantar todo: `docker compose up --build -d` (Keycloak importa el realm y los usuarios solo).\n2. Ejecutar la carpeta **00** para obtener los tokens.\n3. Correr la colección completa con el *Collection Runner* en orden: las carpetas encadenan variables\n   (`actividad_id`, `reserva_id`, ...). Las fechas se calculan solas en cada ejecución.\n\nTodas las llamadas entran por el API Gateway (`{{baseUrl}}`). Los microservicios no publican puertos.\nSwagger UI agrupado: http://localhost:8080/swagger-ui.html · Correos: http://localhost:8025\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Fechas relativas a hoy, para que la colección funcione cualquier día",
+          "const enDias = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };",
+          "pm.collectionVariables.set(\"fecha_excursion\", enDias(6));          // dentro del pronóstico de Open-Meteo (16 días)",
+          "const anioProximo = new Date().getFullYear() + 1;",
+          "pm.collectionVariables.set(\"fecha_fuera_temporada\", anioProximo + \"-01-15\");  // Los Gigantes: marzo a noviembre"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "00 · Autenticación (Keycloak)",
+      "description": "Obtiene los tokens de los 4 usuarios de prueba que importa automáticamente `keycloak/tpi-realm.json`\n(contraseña `1234`). **Ejecutar primero.** Cada request guarda su token en una variable propia,\nasí no hace falta re-loguearse para cambiar de rol.",
+      "item": [
+        {
+          "name": "Login Turista (turista1)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+            "description": "Obtiene un JWT de Keycloak (Direct Access Grant) para `turista1` y lo guarda en `{{token_turista}}`.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "client_id",
+                  "value": "{{clientId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "grant_type",
+                  "value": "password",
+                  "type": "text"
+                },
+                {
+                  "key": "username",
+                  "value": "turista1",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Keycloak devuelve un access_token\", () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().access_token).to.be.a(\"string\");",
+                  "});",
+                  "pm.collectionVariables.set(\"token_turista\", pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Turista 2 (turista2)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+            "description": "Obtiene un JWT de Keycloak (Direct Access Grant) para `turista2` y lo guarda en `{{token_turista2}}`.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "client_id",
+                  "value": "{{clientId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "grant_type",
+                  "value": "password",
+                  "type": "text"
+                },
+                {
+                  "key": "username",
+                  "value": "turista2",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Keycloak devuelve un access_token\", () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().access_token).to.be.a(\"string\");",
+                  "});",
+                  "pm.collectionVariables.set(\"token_turista2\", pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Operador / Prestador (operador1)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+            "description": "Obtiene un JWT de Keycloak (Direct Access Grant) para `operador1` y lo guarda en `{{token_operador}}`.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "client_id",
+                  "value": "{{clientId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "grant_type",
+                  "value": "password",
+                  "type": "text"
+                },
+                {
+                  "key": "username",
+                  "value": "operador1",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Keycloak devuelve un access_token\", () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().access_token).to.be.a(\"string\");",
+                  "});",
+                  "pm.collectionVariables.set(\"token_operador\", pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Administrador (admin1)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+            "description": "Obtiene un JWT de Keycloak (Direct Access Grant) para `admin1` y lo guarda en `{{token_admin}}`.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "client_id",
+                  "value": "{{clientId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "grant_type",
+                  "value": "password",
+                  "type": "text"
+                },
+                {
+                  "key": "username",
+                  "value": "admin1",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Keycloak devuelve un access_token\", () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().access_token).to.be.a(\"string\");",
+                  "});",
+                  "pm.collectionVariables.set(\"token_admin\", pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     },
-    "variable": [
+    {
+      "name": "01 · Catálogo público (sin token)",
+      "description": "Consultas abiertas (F01). El Gateway permite `GET /api/v1/catalogo/**` sin autenticación.\nDatos semilla: 1 Champaquí (14 a 65 años, requiere buen clima), 2 Dique San Roque (temporada sep-abr),\n3 La Cumbrecita (sin restricciones, no depende del clima), 4 Los Gigantes (+18, temporada mar-nov).",
+      "item": [
         {
-            "key": "baseUrl",
-            "value": "http://localhost:8080",
-            "type": "string"
+          "name": "Listar actividades activas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/catalogo/actividades",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Devuelve una lista\", () => pm.expect(pm.response.json()).to.be.an(\"array\").that.is.not.empty);"
+                ]
+              }
+            }
+          ]
         },
         {
-            "key": "geoapiDirectUrl",
-            "value": "http://localhost:8083",
-            "type": "string"
+          "name": "Filtrar por dificultad y precio máximo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/catalogo/actividades?dificultad=ALTA&precioMax=50000",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Todas son ALTA y <= 50000\", () => pm.response.json().forEach(a => { pm.expect(a.dificultad).to.eql(\"ALTA\"); pm.expect(a.precioBase).to.be.at.most(50000); }));"
+                ]
+              }
+            }
+          ]
         },
         {
-            "key": "keycloakUrl",
-            "value": "http://localhost:8180",
-            "type": "string"
+          "name": "Filtrar por ciudad (parcial, sin tildes ni mayúsculas)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/catalogo/actividades?ciudad=CARLOS paz",
+            "description": "El filtro busca dentro del campo `ciudad` sin distinguir mayúsculas ni tildes: `CARLOS paz` encuentra \"Villa Carlos Paz\".",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Encuentra Villa Carlos Paz\", () => pm.expect(pm.response.json().map(a => a.ciudad)).to.include(\"Villa Carlos Paz\"));",
+                  "pm.test(\"Solo actividades de esa ciudad\", () => pm.response.json().forEach(a => pm.expect(a.ciudad).to.eql(\"Villa Carlos Paz\")));"
+                ]
+              }
+            }
+          ]
         },
         {
-            "key": "token",
-            "value": "",
-            "type": "string"
+          "name": "Ciudad sin actividades → 200 con lista vacía",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/catalogo/actividades?ciudad=Mendoza",
+            "description": "Una búsqueda sin resultados no es un error: la colección existe, solo que el filtro no encontró nada. Responde 200 con `[]`.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Lista vacía\", () => pm.expect(pm.response.json()).to.be.an(\"array\").that.is.empty);"
+                ]
+              }
+            }
+          ]
         },
         {
-            "key": "token_turista",
-            "value": "",
-            "type": "string"
+          "name": "Detalle de actividad",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/catalogo/actividades/1",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Incluye restricciones de edad\", () => pm.expect(pm.response.json()).to.have.property(\"edadMinima\"));"
+                ]
+              }
+            }
+          ]
         },
         {
-            "key": "token_proveedor",
-            "value": "",
-            "type": "string"
+          "name": "Disponibilidad de actividad",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/catalogo/actividades/1/disponibilidad",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         },
         {
-            "key": "token_admin",
-            "value": "",
-            "type": "string"
+          "name": "Listar categorías",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/catalogo/categorias",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Detalle de categoría",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/catalogo/categorias/1",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actividad inexistente → 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/catalogo/actividades/9999",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 404\", () => pm.response.to.have.status(404));",
+                  "",
+                  "pm.test(\"Error con formato estándar de common-lib\", () => {",
+                  "    const e = pm.response.json();",
+                  "    pm.expect(e).to.have.property(\"status\");",
+                  "    pm.expect(e).to.have.property(\"message\");",
+                  "    console.log(\"Mensaje:\", e.message, e.validaciones || \"\");",
+                  "});"
+                ]
+              }
+            }
+          ]
         }
-    ],
-    "item": [
+      ]
+    },
+    {
+      "name": "02 · Gestión del catálogo (Operador / Admin)",
+      "description": "F02 y F07. El operador publica y modifica actividades; solo el admin gestiona categorías y da de baja.\nLa actividad creada acá (`{{actividad_id}}`) se usa después en la carpeta 05 (revalidación).",
+      "item": [
         {
-            "name": "0. AutenticaciÃ³n y ObtenciÃ³n de Tokens (Keycloak)",
-            "description": "Endpoints directos a Keycloak para obtener tokens JWT. Cada peticiÃ³n guarda automÃ¡ticamente el token en {{token}} (token activo) y en su variable especÃ­fica ({{token_turista}}, {{token_proveedor}}, {{token_admin}}).",
-            "item": [
+          "name": "Admin crea categoría",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/catalogo/categorias",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
                 {
-                    "name": "0.1 Iniciar SesiÃ³n como TURISTA (turista1)",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "var jsonData = pm.response.json();",
-                                    "if (jsonData.access_token) {",
-                                    "    pm.collectionVariables.set('token', jsonData.access_token);",
-                                    "    pm.collectionVariables.set('token_turista', jsonData.access_token);",
-                                    "    console.log('âœ… Token de TURISTA guardado como token activo');",
-                                    "}"
-                                ],
-                                "type": "text/javascript"
-                            }
-                        }
-                    ],
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/x-www-form-urlencoded"
-                            }
-                        ],
-                        "body": {
-                            "mode": "urlencoded",
-                            "urlencoded": [
-                                {
-                                    "key": "client_id",
-                                    "value": "tpi-client",
-                                    "type": "text"
-                                },
-                                {
-                                    "key": "grant_type",
-                                    "value": "password",
-                                    "type": "text"
-                                },
-                                {
-                                    "key": "username",
-                                    "value": "turista1",
-                                    "type": "text"
-                                },
-                                {
-                                    "key": "password",
-                                    "value": "1234",
-                                    "type": "text"
-                                }
-                            ]
-                        },
-                        "url": {
-                            "raw": "{{keycloakUrl}}/realms/tpi-realm/protocol/openid-connect/token",
-                            "host": [
-                                "{{keycloakUrl}}"
-                            ],
-                            "path": [
-                                "realms",
-                                "tpi-realm",
-                                "protocol",
-                                "openid-connect",
-                                "token"
-                            ]
-                        },
-                        "description": "Autentica al usuario 'turista1' con rol TURISTA. El script de pruebas asigna el token a {{token}} para probar de inmediato las acciones de turista."
-                    },
-                    "response": []
-                },
-                {
-                    "name": "0.2 Iniciar SesiÃ³n como PROVEEDOR / OPERADOR (operador1)",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "var jsonData = pm.response.json();",
-                                    "if (jsonData.access_token) {",
-                                    "    pm.collectionVariables.set('token', jsonData.access_token);",
-                                    "    pm.collectionVariables.set('token_proveedor', jsonData.access_token);",
-                                    "    console.log('âœ… Token de PROVEEDOR guardado como token activo');",
-                                    "}"
-                                ],
-                                "type": "text/javascript"
-                            }
-                        }
-                    ],
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/x-www-form-urlencoded"
-                            }
-                        ],
-                        "body": {
-                            "mode": "urlencoded",
-                            "urlencoded": [
-                                {
-                                    "key": "client_id",
-                                    "value": "tpi-client",
-                                    "type": "text"
-                                },
-                                {
-                                    "key": "grant_type",
-                                    "value": "password",
-                                    "type": "text"
-                                },
-                                {
-                                    "key": "username",
-                                    "value": "operador1",
-                                    "type": "text"
-                                },
-                                {
-                                    "key": "password",
-                                    "value": "1234",
-                                    "type": "text"
-                                }
-                            ]
-                        },
-                        "url": {
-                            "raw": "{{keycloakUrl}}/realms/tpi-realm/protocol/openid-connect/token",
-                            "host": [
-                                "{{keycloakUrl}}"
-                            ],
-                            "path": [
-                                "realms",
-                                "tpi-realm",
-                                "protocol",
-                                "openid-connect",
-                                "token"
-                            ]
-                        },
-                        "description": "Autentica al guÃ­a o agencia 'operador1' con rol OPERADOR / PROVEEDOR. Guarda el token en {{token}} para publicar o modificar excursiones."
-                    },
-                    "response": []
-                },
-                {
-                    "name": "0.3 Iniciar SesiÃ³n como ADMINISTRADOR (admin1)",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "var jsonData = pm.response.json();",
-                                    "if (jsonData.access_token) {",
-                                    "    pm.collectionVariables.set('token', jsonData.access_token);",
-                                    "    pm.collectionVariables.set('token_admin', jsonData.access_token);",
-                                    "    console.log('âœ… Token de ADMIN guardado como token activo');",
-                                    "}"
-                                ],
-                                "type": "text/javascript"
-                            }
-                        }
-                    ],
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/x-www-form-urlencoded"
-                            }
-                        ],
-                        "body": {
-                            "mode": "urlencoded",
-                            "urlencoded": [
-                                {
-                                    "key": "client_id",
-                                    "value": "tpi-client",
-                                    "type": "text"
-                                },
-                                {
-                                    "key": "grant_type",
-                                    "value": "password",
-                                    "type": "text"
-                                },
-                                {
-                                    "key": "username",
-                                    "value": "admin1",
-                                    "type": "text"
-                                },
-                                {
-                                    "key": "password",
-                                    "value": "1234",
-                                    "type": "text"
-                                }
-                            ]
-                        },
-                        "url": {
-                            "raw": "{{keycloakUrl}}/realms/tpi-realm/protocol/openid-connect/token",
-                            "host": [
-                                "{{keycloakUrl}}"
-                            ],
-                            "path": [
-                                "realms",
-                                "tpi-realm",
-                                "protocol",
-                                "openid-connect",
-                                "token"
-                            ]
-                        },
-                        "description": "Autentica al usuario 'admin1' con rol ADMIN. Permite gestionar categorÃ­as, dar bajas lÃ³gicas y ver mÃ©tricas."
-                    },
-                    "response": []
+                  "key": "token",
+                  "value": "{{token_admin}}",
+                  "type": "string"
                 }
-            ]
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Enoturismo {{$timestamp}}\",\n  \"descripcion\": \"Visitas a bodegas y viñedos serranos.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"categoria_id\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
         },
         {
-            "name": "1. Microservicio CatÃ¡logo (ms-catalogo)",
-            "description": "GestiÃ³n de actividades turÃ­sticas, excursiones y categorÃ­as.",
-            "item": [
+          "name": "Operador publica actividad",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/catalogo/actividades",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
                 {
-                    "name": "1.1 Endpoints PÃºblicos (Cualquiera / Sin Token)",
-                    "item": [
-                        {
-                            "name": "1.1.1 Listar Actividades (Filtros Opcionales)",
-                            "request": {
-                                "method": "GET",
-                                "header": [],
-                                "url": {
-                                    "raw": "{{baseUrl}}/api/v1/catalogo/actividades?categoriaId=1&dificultad=ALTA&precioMax=60000",
-                                    "host": [
-                                        "{{baseUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "catalogo",
-                                        "actividades"
-                                    ],
-                                    "query": [
-                                        {
-                                            "key": "categoriaId",
-                                            "value": "1",
-                                            "description": "Filtro por ID de categorÃ­a"
-                                        },
-                                        {
-                                            "key": "dificultad",
-                                            "value": "ALTA",
-                                            "description": "BAJA, MEDIA, ALTA, EXPERTO"
-                                        },
-                                        {
-                                            "key": "precioMax",
-                                            "value": "60000",
-                                            "description": "Precio mÃ¡ximo base"
-                                        },
-                                        {
-                                            "key": "activa",
-                                            "value": "true",
-                                            "disabled": true,
-                                            "description": "Solo activas por defecto"
-                                        }
-                                    ]
-                                },
-                                "description": "PÃšBLICO: Cualquier usuario anÃ³nimo o turista puede navegar el catÃ¡logo sin estar autenticado."
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "1.1.2 Detalle de Actividad por ID",
-                            "request": {
-                                "method": "GET",
-                                "header": [],
-                                "url": {
-                                    "raw": "{{baseUrl}}/api/v1/catalogo/actividades/1",
-                                    "host": [
-                                        "{{baseUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "catalogo",
-                                        "actividades",
-                                        "1"
-                                    ]
-                                },
-                                "description": "PÃšBLICO: Ver informaciÃ³n detallada de la excursiÃ³n, punto de encuentro, cupo y coordenadas GPS."
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "1.1.3 Consultar Disponibilidad de Cupos",
-                            "request": {
-                                "method": "GET",
-                                "header": [],
-                                "url": {
-                                    "raw": "{{baseUrl}}/api/v1/catalogo/actividades/1/disponibilidad",
-                                    "host": [
-                                        "{{baseUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "catalogo",
-                                        "actividades",
-                                        "1",
-                                        "disponibilidad"
-                                    ]
-                                },
-                                "description": "PÃšBLICO / INTERNO: Endpoint liviano que devuelve cupos libres. Consumido por el frontend y por ms-reservas."
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "1.1.4 Listar CategorÃ­as",
-                            "request": {
-                                "method": "GET",
-                                "header": [],
-                                "url": {
-                                    "raw": "{{baseUrl}}/api/v1/catalogo/categorias",
-                                    "host": [
-                                        "{{baseUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "catalogo",
-                                        "categorias"
-                                    ]
-                                },
-                                "description": "PÃšBLICO: Lista todas las categorÃ­as temÃ¡ticas cargadas en el sistema."
-                            },
-                            "response": []
-                        }
-                    ]
-                },
-                {
-                    "name": "1.2 GestiÃ³n de Excursiones (PROVEEDOR y ADMIN)",
-                    "item": [
-                        {
-                            "name": "1.2.1 Crear Nueva Actividad (POST)",
-                            "request": {
-                                "auth": {
-                                    "type": "bearer",
-                                    "bearer": [
-                                        {
-                                            "key": "token",
-                                            "value": "{{token}}",
-                                            "type": "string"
-                                        }
-                                    ]
-                                },
-                                "method": "POST",
-                                "header": [
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json"
-                                    }
-                                ],
-                                "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n  \"titulo\": \"Cabalgata al Atardecer por La Cumbrecita\",\n  \"descripcion\": \"Paseo guiado a caballo atravesando bosques de pinos y arroyos serranos.\",\n  \"categoriaId\": 1,\n  \"dificultad\": \"BAJA\",\n  \"precioBase\": 38000.0,\n  \"cupoMaximo\": 10,\n  \"latitudInicio\": -31.8985,\n  \"longitudInicio\": -64.7738,\n  \"direccionPuntoEncuentro\": \"Entrada Peatonal La Cumbrecita, CÃ³rdoba\",\n  \"requiereBuenClima\": true\n}"
-                                },
-                                "url": {
-                                    "raw": "{{baseUrl}}/api/v1/catalogo/actividades",
-                                    "host": [
-                                        "{{baseUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "catalogo",
-                                        "actividades"
-                                    ]
-                                },
-                                "description": "ROL PERMITIDO: PROVEEDOR u ADMIN. Publica una nueva actividad turÃ­stica en el catÃ¡logo general."
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "1.2.2 ActualizaciÃ³n Completa de Actividad (PUT)",
-                            "request": {
-                                "auth": {
-                                    "type": "bearer",
-                                    "bearer": [
-                                        {
-                                            "key": "token",
-                                            "value": "{{token}}",
-                                            "type": "string"
-                                        }
-                                    ]
-                                },
-                                "method": "PUT",
-                                "header": [
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json"
-                                    }
-                                ],
-                                "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n  \"titulo\": \"Ascenso al Cerro ChampaquÃ­ - ExpediciÃ³n Cumbre\",\n  \"descripcion\": \"TravesÃ­a de trekking de 3 dÃ­as con refugio de montaÃ±a incluido.\",\n  \"categoriaId\": 1,\n  \"dificultad\": \"ALTA\",\n  \"precioBase\": 55000.0,\n  \"cupoMaximo\": 20,\n  \"latitudInicio\": -31.9868,\n  \"longitudInicio\": -64.9351,\n  \"direccionPuntoEncuentro\": \"Puesto GonzÃ¡lez, Villa Alpina, CÃ³rdoba\",\n  \"requiereBuenClima\": true\n}"
-                                },
-                                "url": {
-                                    "raw": "{{baseUrl}}/api/v1/catalogo/actividades/1",
-                                    "host": [
-                                        "{{baseUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "catalogo",
-                                        "actividades",
-                                        "1"
-                                    ]
-                                },
-                                "description": "ROL PERMITIDO: PROVEEDOR u ADMIN. Reemplaza todos los datos de la actividad."
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "1.2.3 ActualizaciÃ³n Parcial de Actividad (PATCH)",
-                            "request": {
-                                "auth": {
-                                    "type": "bearer",
-                                    "bearer": [
-                                        {
-                                            "key": "token",
-                                            "value": "{{token}}",
-                                            "type": "string"
-                                        }
-                                    ]
-                                },
-                                "method": "PATCH",
-                                "header": [
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json"
-                                    }
-                                ],
-                                "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n  \"precioBase\": 58000.0,\n  \"cupoMaximo\": 22\n}"
-                                },
-                                "url": {
-                                    "raw": "{{baseUrl}}/api/v1/catalogo/actividades/1",
-                                    "host": [
-                                        "{{baseUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "catalogo",
-                                        "actividades",
-                                        "1"
-                                    ]
-                                },
-                                "description": "ROL PERMITIDO: PROVEEDOR u ADMIN. Modifica Ãºnicamente los campos enviados (ej. precio y cupo)."
-                            },
-                            "response": []
-                        }
-                    ]
-                },
-                {
-                    "name": "1.3 Operaciones Exclusivas de Administrador (ADMIN)",
-                    "item": [
-                        {
-                            "name": "1.3.1 Baja LÃ³gica de Actividad (DELETE)",
-                            "request": {
-                                "auth": {
-                                    "type": "bearer",
-                                    "bearer": [
-                                        {
-                                            "key": "token",
-                                            "value": "{{token}}",
-                                            "type": "string"
-                                        }
-                                    ]
-                                },
-                                "method": "DELETE",
-                                "header": [],
-                                "url": {
-                                    "raw": "{{baseUrl}}/api/v1/catalogo/actividades/1",
-                                    "host": [
-                                        "{{baseUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "catalogo",
-                                        "actividades",
-                                        "1"
-                                    ]
-                                },
-                                "description": "ROL PERMITIDO: Solo ADMIN. Realiza baja lÃ³gica (activa = false) para no romper integridad histÃ³rica con reservas existentes."
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "1.3.2 Crear Nueva CategorÃ­a (POST)",
-                            "request": {
-                                "auth": {
-                                    "type": "bearer",
-                                    "bearer": [
-                                        {
-                                            "key": "token",
-                                            "value": "{{token}}",
-                                            "type": "string"
-                                        }
-                                    ]
-                                },
-                                "method": "POST",
-                                "header": [
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json"
-                                    }
-                                ],
-                                "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n  \"nombre\": \"Enoturismo y Bodegas Serranas\",\n  \"descripcion\": \"DegustaciÃ³n de vinos y visitas a viÃ±edos en los valles cordobeses.\"\n}"
-                                },
-                                "url": {
-                                    "raw": "{{baseUrl}}/api/v1/catalogo/categorias",
-                                    "host": [
-                                        "{{baseUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "catalogo",
-                                        "categorias"
-                                    ]
-                                },
-                                "description": "ROL PERMITIDO: Solo ADMIN. Los proveedores no crean categorÃ­as arbitrarias para mantener orden taxonÃ³mico."
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "1.3.3 Eliminar CategorÃ­a (DELETE)",
-                            "request": {
-                                "auth": {
-                                    "type": "bearer",
-                                    "bearer": [
-                                        {
-                                            "key": "token",
-                                            "value": "{{token}}",
-                                            "type": "string"
-                                        }
-                                    ]
-                                },
-                                "method": "DELETE",
-                                "header": [],
-                                "url": {
-                                    "raw": "{{baseUrl}}/api/v1/catalogo/categorias/2",
-                                    "host": [
-                                        "{{baseUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "catalogo",
-                                        "categorias",
-                                        "2"
-                                    ]
-                                },
-                                "description": "ROL PERMITIDO: Solo ADMIN. Valida que la categorÃ­a no contenga actividades asignadas."
-                            },
-                            "response": []
-                        }
-                    ]
+                  "key": "token",
+                  "value": "{{token_operador}}",
+                  "type": "string"
                 }
-            ]
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Cabalgata al Atardecer por La Cumbrecita\",\n  \"descripcion\": \"Paseo guiado a caballo atravesando bosques de pinos y arroyos serranos.\",\n  \"categoriaId\": 3,\n  \"dificultad\": \"BAJA\",\n  \"precioBase\": 25000.0,\n  \"cupoMaximo\": 12,\n  \"latitudInicio\": -31.9015,\n  \"longitudInicio\": -64.7731,\n  \"direccionPuntoEncuentro\": \"Plaza Central, La Cumbrecita, Córdoba\",\n  \"ciudad\": \"La Cumbrecita\",\n  \"requiereBuenClima\": false,\n  \"edadMinima\": 8,\n  \"edadMaxima\": 75\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"actividad_id\", pm.response.json().id);",
+                  "pm.test(\"Queda activa\", () => pm.expect(pm.response.json().activa).to.be.true);"
+                ]
+              }
+            }
+          ]
         },
         {
-            "name": "2. Microservicio Reservas (ms-reservas)",
-            "description": "OrquestaciÃ³n de reservas turÃ­sticas, cÃ¡lculo de ruta (OSRM), validaciÃ³n climÃ¡tica (Open-Meteo) y notificaciones (Mailpit).",
-            "item": [
+          "name": "Operador reemplaza actividad (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/catalogo/actividades/{{actividad_id}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
                 {
-                    "name": "2.1 Acciones del TURISTA",
-                    "item": [
-                        {
-                            "name": "2.1.1 Crear Reserva Orquestada (TURISTA)",
-                            "request": {
-                                "auth": {
-                                    "type": "bearer",
-                                    "bearer": [
-                                        {
-                                            "key": "token",
-                                            "value": "{{token}}",
-                                            "type": "string"
-                                        }
-                                    ]
-                                },
-                                "method": "POST",
-                                "header": [
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json"
-                                    }
-                                ],
-                                "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n  \"actividadId\": 1,\n  \"fechaExcursion\": \"2026-11-20\",\n  \"cantidadPersonas\": 2,\n  \"origenTurista\": {\n    \"latitud\": -31.4135,\n    \"longitud\": -64.18105,\n    \"direccion\": \"Hotel Sheraton CÃ³rdoba, Duarte QuirÃ³s 1300\"\n  },\n  \"emailTurista\": \"turista1@example.com\"\n}"
-                                },
-                                "url": {
-                                    "raw": "{{baseUrl}}/api/v1/reservas",
-                                    "host": [
-                                        "{{baseUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "reservas"
-                                    ]
-                                },
-                                "description": "ROL PERMITIDO: TURISTA. Orquesta: 1) Valida cupos en ms-catalogo, 2) Calcula trayecto terrestre en geoapi (OSRM), 3) Verifica lluvia/viento en Open-Meteo, 4) Notifica por Mailpit."
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "2.1.2 Listar Mis Reservas (TURISTA)",
-                            "request": {
-                                "auth": {
-                                    "type": "bearer",
-                                    "bearer": [
-                                        {
-                                            "key": "token",
-                                            "value": "{{token}}",
-                                            "type": "string"
-                                        }
-                                    ]
-                                },
-                                "method": "GET",
-                                "header": [],
-                                "url": {
-                                    "raw": "{{baseUrl}}/api/v1/reservas/mis-reservas",
-                                    "host": [
-                                        "{{baseUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "reservas",
-                                        "mis-reservas"
-                                    ]
-                                },
-                                "description": "ROL PERMITIDO: TURISTA. Extrae el username o sub del JWT y retorna Ãºnicamente las reservas que le pertenecen al turista autenticado."
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "2.1.3 Cancelar Mi Reserva (TURISTA)",
-                            "request": {
-                                "auth": {
-                                    "type": "bearer",
-                                    "bearer": [
-                                        {
-                                            "key": "token",
-                                            "value": "{{token}}",
-                                            "type": "string"
-                                        }
-                                    ]
-                                },
-                                "method": "PUT",
-                                "header": [],
-                                "url": {
-                                    "raw": "{{baseUrl}}/api/v1/reservas/1/cancelar",
-                                    "host": [
-                                        "{{baseUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "reservas",
-                                        "1",
-                                        "cancelar"
-                                    ]
-                                },
-                                "description": "ROL PERMITIDO: TURISTA o ADMIN. El turista puede cancelar su propia reserva con anticipaciÃ³n. Libera cupo y notifica por email."
-                            },
-                            "response": []
-                        }
-                    ]
-                },
-                {
-                    "name": "2.2 Acciones del PROVEEDOR / OPERADOR",
-                    "item": [
-                        {
-                            "name": "2.2.1 Listar Reservas de Mi Actividad (PROVEEDOR, ADMIN)",
-                            "request": {
-                                "auth": {
-                                    "type": "bearer",
-                                    "bearer": [
-                                        {
-                                            "key": "token",
-                                            "value": "{{token}}",
-                                            "type": "string"
-                                        }
-                                    ]
-                                },
-                                "method": "GET",
-                                "header": [],
-                                "url": {
-                                    "raw": "{{baseUrl}}/api/v1/reservas/actividad/1",
-                                    "host": [
-                                        "{{baseUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "reservas",
-                                        "actividad",
-                                        "1"
-                                    ]
-                                },
-                                "description": "ROL PERMITIDO: PROVEEDOR o ADMIN. Permite al guÃ­a/agencia ver el listado de pasajeros anotados en su excursiÃ³n."
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "2.2.2 Confirmar Reserva (PROVEEDOR, ADMIN)",
-                            "request": {
-                                "auth": {
-                                    "type": "bearer",
-                                    "bearer": [
-                                        {
-                                            "key": "token",
-                                            "value": "{{token}}",
-                                            "type": "string"
-                                        }
-                                    ]
-                                },
-                                "method": "PUT",
-                                "header": [],
-                                "url": {
-                                    "raw": "{{baseUrl}}/api/v1/reservas/1/confirmar",
-                                    "host": [
-                                        "{{baseUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "reservas",
-                                        "1",
-                                        "confirmar"
-                                    ]
-                                },
-                                "description": "ROL PERMITIDO: PROVEEDOR o ADMIN. Cambia el estado a CONFIRMADA tras chequear pago o cupos. EnvÃ­a email de voucher al turista."
-                            },
-                            "response": []
-                        }
-                    ]
-                },
-                {
-                    "name": "2.3 Acciones de SupervisiÃ³n y ADMIN",
-                    "item": [
-                        {
-                            "name": "2.3.1 Detalle Completo de Reserva por ID (ADMIN, PROVEEDOR, TURISTA)",
-                            "request": {
-                                "auth": {
-                                    "type": "bearer",
-                                    "bearer": [
-                                        {
-                                            "key": "token",
-                                            "value": "{{token}}",
-                                            "type": "string"
-                                        }
-                                    ]
-                                },
-                                "method": "GET",
-                                "header": [],
-                                "url": {
-                                    "raw": "{{baseUrl}}/api/v1/reservas/1",
-                                    "host": [
-                                        "{{baseUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "reservas",
-                                        "1"
-                                    ]
-                                },
-                                "description": "Detalle completo con itinerario OSRM y reporte meteorolÃ³gico. Turista solo ve la suya; Proveedor ve las de sus excursiones; Admin ve cualquiera."
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "2.3.2 Listar Todas las Reservas del Sistema (ADMIN)",
-                            "request": {
-                                "auth": {
-                                    "type": "bearer",
-                                    "bearer": [
-                                        {
-                                            "key": "token",
-                                            "value": "{{token}}",
-                                            "type": "string"
-                                        }
-                                    ]
-                                },
-                                "method": "GET",
-                                "header": [],
-                                "url": {
-                                    "raw": "{{baseUrl}}/api/v1/reservas",
-                                    "host": [
-                                        "{{baseUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "reservas"
-                                    ]
-                                },
-                                "description": "ROL PERMITIDO: Solo ADMIN. AuditorÃ­a y visualizaciÃ³n global de todas las reservas de la plataforma."
-                            },
-                            "response": []
-                        }
-                    ]
+                  "key": "token",
+                  "value": "{{token_operador}}",
+                  "type": "string"
                 }
-            ]
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Cabalgata al Atardecer - Circuito Extendido\",\n  \"descripcion\": \"Paseo guiado a caballo atravesando bosques de pinos y arroyos serranos.\",\n  \"categoriaId\": 3,\n  \"dificultad\": \"BAJA\",\n  \"precioBase\": 29000.0,\n  \"cupoMaximo\": 15,\n  \"latitudInicio\": -31.9015,\n  \"longitudInicio\": -64.7731,\n  \"direccionPuntoEncuentro\": \"Plaza Central, La Cumbrecita, Córdoba\",\n  \"ciudad\": \"La Cumbrecita\",\n  \"requiereBuenClima\": false,\n  \"edadMinima\": 8,\n  \"edadMaxima\": 75\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Cupo actualizado\", () => pm.expect(pm.response.json().cupoMaximo).to.eql(15));"
+                ]
+              }
+            }
+          ]
         },
         {
-            "name": "3. Microservicio Geoespacial (geoapi / OSRM)",
-            "description": "CÃ¡lculo de trayectos, distancias y tiempos de viaje con el motor OSRM local. Incluye endpoints vÃ­a API Gateway (8080 con RBAC) y directos (8083).",
-            "item": [
+          "name": "Operador ajusta precio y cupo (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/catalogo/actividades/{{actividad_id}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
                 {
-                    "name": "3.1 VÃ­a API Gateway (Puerto 8080 - Con RBAC)",
-                    "item": [
-                        {
-                            "name": "3.1.1 Calcular Distancia y DuraciÃ³n Terrestre (POST)",
-                            "request": {
-                                "auth": {
-                                    "type": "bearer",
-                                    "bearer": [
-                                        {
-                                            "key": "token",
-                                            "value": "{{token}}",
-                                            "type": "string"
-                                        }
-                                    ]
-                                },
-                                "method": "POST",
-                                "header": [
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json"
-                                    }
-                                ],
-                                "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n  \"origen\": {\n    \"latitud\": -31.41,\n    \"longitud\": -64.18\n  },\n  \"destino\": {\n    \"latitud\": -31.98,\n    \"longitud\": -64.93\n  }\n}"
-                                },
-                                "url": {
-                                    "raw": "{{baseUrl}}/api/v1/geo/rutas/distancia",
-                                    "host": [
-                                        "{{baseUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "geo",
-                                        "rutas",
-                                        "distancia"
-                                    ]
-                                },
-                                "description": "ROL PERMITIDO: Autenticado (Cualquier rol / Inter-servicio). Calcula distancia exacta en kilÃ³metros y tiempo en minutos."
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "3.1.2 EstimaciÃ³n RÃ¡pida de Ruta por Query Params (GET)",
-                            "request": {
-                                "auth": {
-                                    "type": "bearer",
-                                    "bearer": [
-                                        {
-                                            "key": "token",
-                                            "value": "{{token}}",
-                                            "type": "string"
-                                        }
-                                    ]
-                                },
-                                "method": "GET",
-                                "header": [],
-                                "url": {
-                                    "raw": "{{baseUrl}}/api/v1/geo/rutas/estimacion?latOrig=-31.41&lonOrig=-64.18&latDest=-31.98&lonDest=-64.93",
-                                    "host": [
-                                        "{{baseUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "geo",
-                                        "rutas",
-                                        "estimacion"
-                                    ],
-                                    "query": [
-                                        {
-                                            "key": "latOrig",
-                                            "value": "-31.41"
-                                        },
-                                        {
-                                            "key": "lonOrig",
-                                            "value": "-64.18"
-                                        },
-                                        {
-                                            "key": "latDest",
-                                            "value": "-31.98"
-                                        },
-                                        {
-                                            "key": "lonDest",
-                                            "value": "-64.93"
-                                        }
-                                    ]
-                                },
-                                "description": "ROL PERMITIDO: Autenticado. Variante GET para integraciones rÃ¡pidas."
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "3.1.3 Health Check del Contenedor OSRM (ADMIN)",
-                            "request": {
-                                "auth": {
-                                    "type": "bearer",
-                                    "bearer": [
-                                        {
-                                            "key": "token",
-                                            "value": "{{token_admin}}",
-                                            "type": "string"
-                                        }
-                                    ]
-                                },
-                                "method": "GET",
-                                "header": [],
-                                "url": {
-                                    "raw": "{{baseUrl}}/api/v1/geo/health-osrm",
-                                    "host": [
-                                        "{{baseUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "geo",
-                                        "health-osrm"
-                                    ]
-                                },
-                                "description": "ROL PERMITIDO: Solo ADMIN. Comprueba que el daemon OSRM responda en Docker a travÃ©s del Gateway."
-                            },
-                            "response": []
-                        }
-                    ]
-                },
-                {
-                    "name": "3.2 Directo a GeoAPI (Puerto 8083 - Sin Token)",
-                    "item": [
-                        {
-                            "name": "3.2.1 POST Calcular Ruta Terrestre (Formato Anidado Oficial)",
-                            "request": {
-                                "method": "POST",
-                                "header": [
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json"
-                                    }
-                                ],
-                                "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n  \"origen\": {\n    \"latitud\": -31.41,\n    \"longitud\": -64.18\n  },\n  \"destino\": {\n    \"latitud\": -31.98,\n    \"longitud\": -64.93\n  }\n}"
-                                },
-                                "url": {
-                                    "raw": "{{geoapiDirectUrl}}/api/v1/geo/rutas/distancia",
-                                    "host": [
-                                        "{{geoapiDirectUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "geo",
-                                        "rutas",
-                                        "distancia"
-                                    ]
-                                },
-                                "description": "Formato anidado oficial. Llamada directa a GeoAPI en 8083 para desarrollo aislado."
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "3.2.2 GET EstimaciÃ³n RÃ¡pida por Query Params",
-                            "request": {
-                                "method": "GET",
-                                "header": [],
-                                "url": {
-                                    "raw": "{{geoapiDirectUrl}}/api/v1/geo/rutas/estimacion?latOrig=-31.41&lonOrig=-64.18&latDest=-31.98&lonDest=-64.93",
-                                    "host": [
-                                        "{{geoapiDirectUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "geo",
-                                        "rutas",
-                                        "estimacion"
-                                    ],
-                                    "query": [
-                                        {
-                                            "key": "latOrig",
-                                            "value": "-31.41"
-                                        },
-                                        {
-                                            "key": "lonOrig",
-                                            "value": "-64.18"
-                                        },
-                                        {
-                                            "key": "latDest",
-                                            "value": "-31.98"
-                                        },
-                                        {
-                                            "key": "lonDest",
-                                            "value": "-64.93"
-                                        }
-                                    ]
-                                },
-                                "description": "EstimaciÃ³n liviana por URL directa a GeoAPI."
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "3.2.3 GET Health Check OSRM (Directo)",
-                            "request": {
-                                "method": "GET",
-                                "header": [],
-                                "url": {
-                                    "raw": "{{geoapiDirectUrl}}/api/v1/geo/health-osrm",
-                                    "host": [
-                                        "{{geoapiDirectUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "geo",
-                                        "health-osrm"
-                                    ]
-                                },
-                                "description": "Chequeo directo de salud del daemon OSRM."
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "3.2.4 POST ValidaciÃ³n Coordenada InvÃ¡lida (Error 400 Bad Request)",
-                            "request": {
-                                "method": "POST",
-                                "header": [
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json"
-                                    }
-                                ],
-                                "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n  \"origen\": {\n    \"latitud\": 999.0,\n    \"longitud\": -64.18\n  },\n  \"destino\": {\n    \"latitud\": -31.98,\n    \"longitud\": -64.93\n  }\n}"
-                                },
-                                "url": {
-                                    "raw": "{{geoapiDirectUrl}}/api/v1/geo/rutas/distancia",
-                                    "host": [
-                                        "{{geoapiDirectUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "v1",
-                                        "geo",
-                                        "rutas",
-                                        "distancia"
-                                    ]
-                                },
-                                "description": "Demuestra la validaciÃ³n de latitud [-90, 90] devolviendo HTTP 400 Bad Request."
-                            },
-                            "response": []
-                        }
-                    ]
+                  "key": "token",
+                  "value": "{{token_operador}}",
+                  "type": "string"
                 }
-            ]
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"precioBase\": 31000.0,\n  \"cupoMaximo\": 20\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Solo cambia lo enviado\", () => { const a = pm.response.json(); pm.expect(a.precioBase).to.eql(31000); pm.expect(a.edadMinima).to.eql(8); });"
+                ]
+              }
+            }
+          ]
         },
         {
-            "name": "4. Pruebas de Seguridad RBAC (Casos de Ã‰xito y Rechazo)",
-            "description": "Peticiones listas para demostrar la seguridad del Gateway y control de acceso en la defensa oral.",
-            "item": [
+          "name": "Validación: datos inválidos → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/catalogo/actividades",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
                 {
-                    "name": "4.1 Prueba Sin Token -> Debe Rechazar 401 Unauthorized",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"titulo\": \"ExcursiÃ³n no autorizada\",\n  \"precioBase\": 1000\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/v1/catalogo/actividades",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "v1",
-                                "catalogo",
-                                "actividades"
-                            ]
-                        },
-                        "description": "DEMOSTRACIÃ“N: PeticiÃ³n sin cabecera Authorization: Bearer. El Gateway la frena de inmediato devolviendo HTTP 401 Unauthorized."
-                    },
-                    "response": []
-                },
-                {
-                    "name": "4.2 Prueba CatÃ¡logo PÃºblico -> Debe Responder 200 OK Sin Token",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/v1/catalogo/actividades",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "v1",
-                                "catalogo",
-                                "actividades"
-                            ]
-                        },
-                        "description": "DEMOSTRACIÃ“N: La consulta pÃºblica no exige token, el Gateway deja pasar la peticiÃ³n y responde 200 OK con el listado."
-                    },
-                    "response": []
-                },
-                {
-                    "name": "4.3 Prueba Turista queriendo Borrar CategorÃ­a -> Debe Rechazar 403 Forbidden",
-                    "request": {
-                        "auth": {
-                            "type": "bearer",
-                            "bearer": [
-                                {
-                                    "key": "token",
-                                    "value": "{{token_turista}}",
-                                    "type": "string"
-                                }
-                            ]
-                        },
-                        "method": "DELETE",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/v1/catalogo/categorias/1",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "v1",
-                                "catalogo",
-                                "categorias",
-                                "1"
-                            ]
-                        },
-                        "description": "DEMOSTRACIÃ“N: Se envÃ­a el token de Turista para borrar una categorÃ­a. Como no tiene rol ADMIN, el sistema deniega el acceso con HTTP 403 Forbidden."
-                    },
-                    "response": []
+                  "key": "token",
+                  "value": "{{token_operador}}",
+                  "type": "string"
                 }
-            ]
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"\",\n  \"precioBase\": -10,\n  \"cupoMaximo\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));",
+                  "",
+                  "pm.test(\"Error con formato estándar de common-lib\", () => {",
+                  "    const e = pm.response.json();",
+                  "    pm.expect(e).to.have.property(\"status\");",
+                  "    pm.expect(e).to.have.property(\"message\");",
+                  "    console.log(\"Mensaje:\", e.message, e.validaciones || \"\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validación: edad mínima > máxima → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/catalogo/actividades",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_operador}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Cabalgata al Atardecer por La Cumbrecita\",\n  \"descripcion\": \"Paseo guiado a caballo atravesando bosques de pinos y arroyos serranos.\",\n  \"categoriaId\": 3,\n  \"dificultad\": \"BAJA\",\n  \"precioBase\": 25000.0,\n  \"cupoMaximo\": 12,\n  \"latitudInicio\": -31.9015,\n  \"longitudInicio\": -64.7731,\n  \"direccionPuntoEncuentro\": \"Plaza Central, La Cumbrecita, Córdoba\",\n  \"ciudad\": \"La Cumbrecita\",\n  \"requiereBuenClima\": false,\n  \"edadMinima\": 50,\n  \"edadMaxima\": 20\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));",
+                  "",
+                  "pm.test(\"Error con formato estándar de common-lib\", () => {",
+                  "    const e = pm.response.json();",
+                  "    pm.expect(e).to.have.property(\"status\");",
+                  "    pm.expect(e).to.have.property(\"message\");",
+                  "    console.log(\"Mensaje:\", e.message, e.validaciones || \"\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin elimina categoría con actividades → 409",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/catalogo/categorias/1",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_admin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 409\", () => pm.response.to.have.status(409));",
+                  "",
+                  "pm.test(\"Error con formato estándar de common-lib\", () => {",
+                  "    const e = pm.response.json();",
+                  "    pm.expect(e).to.have.property(\"status\");",
+                  "    pm.expect(e).to.have.property(\"message\");",
+                  "    console.log(\"Mensaje:\", e.message, e.validaciones || \"\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin elimina categoría sin actividades → 204",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/catalogo/categorias/{{categoria_id}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_admin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
         }
-    ]
+      ]
+    },
+    {
+      "name": "03 · Reservas: proceso principal (camino feliz)",
+      "description": "Proceso integrador (F03 → F04 → F05). `ms-reservas` consulta a `ms-catalogo` (actividad y restricciones),\na Open-Meteo (si la actividad requiere buen clima) y a `geoapi`/OSRM (traslado), persiste la reserva en\nPENDIENTE y envía el email a Mailpit (http://localhost:8025).\nEl turista y su email salen del JWT: el Gateway los propaga en los headers `X-User-*`.",
+      "item": [
+        {
+          "name": "Turista crea reserva",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/reservas",
+            "description": "Actividad 3 (La Cumbrecita): no depende del clima, así que el resultado es siempre PENDIENTE.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actividadId\": 3,\n  \"fechaExcursion\": \"{{fecha_excursion}}\",\n  \"participantes\": [\n    {\n      \"nombre\": \"Lucía Fernández\",\n      \"dni\": \"38123456\",\n      \"fechaNacimiento\": \"1994-05-12\",\n      \"telefono\": \"+54 351 555-1234\"\n    },\n    {\n      \"nombre\": \"Martín Fernández\",\n      \"dni\": \"37987654\",\n      \"fechaNacimiento\": \"1992-09-03\"\n    }\n  ],\n  \"origenTurista\": {\n    \"latitud\": -31.4135,\n    \"longitud\": -64.18105,\n    \"direccion\": \"Hotel Sheraton, Córdoba Capital\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"reserva_id\", pm.response.json().id);",
+                  "pm.test(\"Queda PENDIENTE\", () => pm.expect(pm.response.json().estado).to.eql(\"PENDIENTE\"));",
+                  "pm.test(\"El turista sale del token\", () => pm.expect(pm.response.json().turistaId).to.eql(\"turista1\"));",
+                  "pm.test(\"Cantidad = participantes\", () => pm.expect(pm.response.json().cantidadPersonas).to.eql(2));",
+                  "pm.test(\"Monto = precio x personas\", () => pm.expect(pm.response.json().montoTotal).to.eql(64000));",
+                  "console.log(\"Traslado:\", JSON.stringify(pm.response.json().trasladoEstimado));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Turista consulta sus reservas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/reservas/mis-reservas",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Solo reservas propias\", () => pm.response.json().forEach(r => pm.expect(r.turistaId).to.eql(\"turista1\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Turista consulta el detalle",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_id}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Incluye participantes\", () => pm.expect(pm.response.json().participantes).to.have.lengthOf(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Operador lista reservas de la actividad",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/reservas/actividad/3",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_operador}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Operador confirma la reserva (voucher por email)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_id}}/confirmar",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_operador}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"estado = CONFIRMADA\", () => pm.expect(pm.response.json().estado).to.eql(\"CONFIRMADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Turista cancela la reserva (libera cupo)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_id}}/cancelar",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"estado = CANCELADA\", () => pm.expect(pm.response.json().estado).to.eql(\"CANCELADA\"));",
+                  "pm.test(\"motivoEstado = Cancelada por el turista\", () => pm.expect(pm.response.json().motivoEstado).to.eql(\"Cancelada por el turista\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reserva con chequeo de clima (Open-Meteo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/reservas",
+            "description": "Actividad 1 (Champaquí) requiere buen clima: según el pronóstico real queda PENDIENTE o RECHAZADA_POR_CLIMA (lluvia > 70 % o código >= 61).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actividadId\": 1,\n  \"fechaExcursion\": \"{{fecha_excursion}}\",\n  \"participantes\": [\n    {\n      \"nombre\": \"Lucía Fernández\",\n      \"dni\": \"38123456\",\n      \"fechaNacimiento\": \"1994-05-12\",\n      \"telefono\": \"+54 351 555-1234\"\n    }\n  ],\n  \"origenTurista\": {\n    \"latitud\": -31.4135,\n    \"longitud\": -64.18105,\n    \"direccion\": \"Hotel Sheraton, Córdoba Capital\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"reserva_clima_id\", pm.response.json().id);",
+                  "pm.test(\"Se evaluó el clima\", () => pm.expect([\"PENDIENTE\", \"RECHAZADA_POR_CLIMA\"]).to.include(pm.response.json().estado));",
+                  "console.log(\"Estado:\", pm.response.json().estado, \"|\", pm.response.json().descripcionClima);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 · Reservas: reglas de negocio (escenarios negativos)",
+      "description": "RN01 cupo (409), restricciones de edad y temporada (400), RN05 transiciones inválidas (400),\nvalidación de datos (400) y privacidad entre turistas (403).",
+      "item": [
+        {
+          "name": "RN01 · Cupo insuficiente → 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/reservas",
+            "description": "La Cumbrecita tiene cupo 10 y se piden 11 lugares.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actividadId\": 3,\n  \"fechaExcursion\": \"{{fecha_excursion}}\",\n  \"participantes\": {{participantes_11}},\n  \"origenTurista\": {\n    \"latitud\": -31.4135,\n    \"longitud\": -64.18105,\n    \"direccion\": \"Hotel Sheraton, Córdoba Capital\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const p = [];",
+                  "for (let i = 0; i < 11; i++) {",
+                  "    p.push({ nombre: \"Participante \" + (i + 1), dni: String(40000000 + i), fechaNacimiento: \"1990-01-01\" });",
+                  "}",
+                  "pm.collectionVariables.set(\"participantes_11\", JSON.stringify(p));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 409\", () => pm.response.to.have.status(409));",
+                  "",
+                  "pm.test(\"Error con formato estándar de common-lib\", () => {",
+                  "    const e = pm.response.json();",
+                  "    pm.expect(e).to.have.property(\"status\");",
+                  "    pm.expect(e).to.have.property(\"message\");",
+                  "    console.log(\"Mensaje:\", e.message, e.validaciones || \"\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edad mínima no cumplida → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/reservas",
+            "description": "Champaquí exige 14 años: Sofía (2014) no cumple.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actividadId\": 1,\n  \"fechaExcursion\": \"{{fecha_excursion}}\",\n  \"participantes\": [\n    {\n      \"nombre\": \"Lucía Fernández\",\n      \"dni\": \"38123456\",\n      \"fechaNacimiento\": \"1994-05-12\",\n      \"telefono\": \"+54 351 555-1234\"\n    },\n    {\n      \"nombre\": \"Sofía Fernández\",\n      \"dni\": \"52111222\",\n      \"fechaNacimiento\": \"2014-01-20\"\n    }\n  ],\n  \"origenTurista\": {\n    \"latitud\": -31.4135,\n    \"longitud\": -64.18105,\n    \"direccion\": \"Hotel Sheraton, Córdoba Capital\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));",
+                  "",
+                  "pm.test(\"Error con formato estándar de common-lib\", () => {",
+                  "    const e = pm.response.json();",
+                  "    pm.expect(e).to.have.property(\"status\");",
+                  "    pm.expect(e).to.have.property(\"message\");",
+                  "    console.log(\"Mensaje:\", e.message, e.validaciones || \"\");",
+                  "});",
+                  "",
+                  "pm.test(\"Menciona la edad\", () => pm.expect(pm.response.json().message.toLowerCase()).to.include(\"edad\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Fuera de temporada → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/reservas",
+            "description": "Los Gigantes opera de marzo a noviembre; se pide el 15 de enero.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actividadId\": 4,\n  \"fechaExcursion\": \"{{fecha_fuera_temporada}}\",\n  \"participantes\": [\n    {\n      \"nombre\": \"Lucía Fernández\",\n      \"dni\": \"38123456\",\n      \"fechaNacimiento\": \"1994-05-12\",\n      \"telefono\": \"+54 351 555-1234\"\n    }\n  ],\n  \"origenTurista\": {\n    \"latitud\": -31.4135,\n    \"longitud\": -64.18105,\n    \"direccion\": \"Hotel Sheraton, Córdoba Capital\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));",
+                  "",
+                  "pm.test(\"Error con formato estándar de common-lib\", () => {",
+                  "    const e = pm.response.json();",
+                  "    pm.expect(e).to.have.property(\"status\");",
+                  "    pm.expect(e).to.have.property(\"message\");",
+                  "    console.log(\"Mensaje:\", e.message, e.validaciones || \"\");",
+                  "});",
+                  "",
+                  "pm.test(\"Menciona la temporada\", () => pm.expect(pm.response.json().message).to.include(\"temporada\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DNI repetido entre participantes → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/reservas",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actividadId\": 3,\n  \"fechaExcursion\": \"{{fecha_excursion}}\",\n  \"participantes\": [\n    {\n      \"nombre\": \"Lucía Fernández\",\n      \"dni\": \"38123456\",\n      \"fechaNacimiento\": \"1994-05-12\",\n      \"telefono\": \"+54 351 555-1234\"\n    },\n    {\n      \"nombre\": \"Martín Fernández\",\n      \"dni\": \"38123456\",\n      \"fechaNacimiento\": \"1992-09-03\"\n    }\n  ],\n  \"origenTurista\": {\n    \"latitud\": -31.4135,\n    \"longitud\": -64.18105,\n    \"direccion\": \"Hotel Sheraton, Córdoba Capital\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));",
+                  "",
+                  "pm.test(\"Error con formato estándar de common-lib\", () => {",
+                  "    const e = pm.response.json();",
+                  "    pm.expect(e).to.have.property(\"status\");",
+                  "    pm.expect(e).to.have.property(\"message\");",
+                  "    console.log(\"Mensaje:\", e.message, e.validaciones || \"\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validación: sin participantes y fecha pasada → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/reservas",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actividadId\": 3,\n  \"fechaExcursion\": \"2020-01-01\",\n  \"participantes\": [],\n  \"origenTurista\": {\n    \"latitud\": -31.4135,\n    \"longitud\": -64.18105,\n    \"direccion\": \"Hotel Sheraton, Córdoba Capital\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));",
+                  "",
+                  "pm.test(\"Error con formato estándar de common-lib\", () => {",
+                  "    const e = pm.response.json();",
+                  "    pm.expect(e).to.have.property(\"status\");",
+                  "    pm.expect(e).to.have.property(\"message\");",
+                  "    console.log(\"Mensaje:\", e.message, e.validaciones || \"\");",
+                  "});",
+                  "",
+                  "pm.test(\"Detalla los campos\", () => pm.expect(pm.response.json().validaciones).to.have.keys(\"participantes\", \"fechaExcursion\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actividad inexistente → 404",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/reservas",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actividadId\": 9999,\n  \"fechaExcursion\": \"{{fecha_excursion}}\",\n  \"participantes\": [\n    {\n      \"nombre\": \"Lucía Fernández\",\n      \"dni\": \"38123456\",\n      \"fechaNacimiento\": \"1994-05-12\",\n      \"telefono\": \"+54 351 555-1234\"\n    }\n  ],\n  \"origenTurista\": {\n    \"latitud\": -31.4135,\n    \"longitud\": -64.18105,\n    \"direccion\": \"Hotel Sheraton, Córdoba Capital\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 404\", () => pm.response.to.have.status(404));",
+                  "",
+                  "pm.test(\"Error con formato estándar de common-lib\", () => {",
+                  "    const e = pm.response.json();",
+                  "    pm.expect(e).to.have.property(\"status\");",
+                  "    pm.expect(e).to.have.property(\"message\");",
+                  "    console.log(\"Mensaje:\", e.message, e.validaciones || \"\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RN05 · Cancelar una reserva ya cancelada → 400",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_id}}/cancelar",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));",
+                  "",
+                  "pm.test(\"Error con formato estándar de common-lib\", () => {",
+                  "    const e = pm.response.json();",
+                  "    pm.expect(e).to.have.property(\"status\");",
+                  "    pm.expect(e).to.have.property(\"message\");",
+                  "    console.log(\"Mensaje:\", e.message, e.validaciones || \"\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RN05 · Confirmar una reserva cancelada → 400",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_id}}/confirmar",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_operador}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));",
+                  "",
+                  "pm.test(\"Error con formato estándar de common-lib\", () => {",
+                  "    const e = pm.response.json();",
+                  "    pm.expect(e).to.have.property(\"status\");",
+                  "    pm.expect(e).to.have.property(\"message\");",
+                  "    console.log(\"Mensaje:\", e.message, e.validaciones || \"\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Otro turista no puede ver la reserva → 403",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_id}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista2}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));",
+                  "",
+                  "pm.test(\"Error con formato estándar de common-lib\", () => {",
+                  "    const e = pm.response.json();",
+                  "    pm.expect(e).to.have.property(\"status\");",
+                  "    pm.expect(e).to.have.property(\"message\");",
+                  "    console.log(\"Mensaje:\", e.message, e.validaciones || \"\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Otro turista no puede cancelarla → 403",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_clima_id}}/cancelar",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista2}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));",
+                  "",
+                  "pm.test(\"Error con formato estándar de common-lib\", () => {",
+                  "    const e = pm.response.json();",
+                  "    pm.expect(e).to.have.property(\"status\");",
+                  "    pm.expect(e).to.have.property(\"message\");",
+                  "    console.log(\"Mensaje:\", e.message, e.validaciones || \"\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Limpieza: turista cancela la reserva de clima",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_clima_id}}/cancelar",
+            "description": "Libera el cupo usado en la carpeta 03. Si quedó RECHAZADA_POR_CLIMA responde 400 (estado final), y también es válido.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Cancelada o ya en estado final\", () => pm.expect([200, 400]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 · Revalidación: una reserva válida deja de ser viable",
+      "description": "Corre sola cada hora (`REVALIDACION_CRON`) y el admin puede dispararla a mano. Revisa las reservas\nPENDIENTE/CONFIRMADA futuras: baja de la actividad, cambio de temporada, reducción de cupo, pronóstico\nadverso (Open-Meteo) y la regla de 48 hs (recordatorio y anulación si no se confirma). Cada cambio se\nnotifica por email.",
+      "item": [
+        {
+          "name": "Turista reserva la actividad nueva",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/reservas",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actividadId\": {{actividad_id}},\n  \"fechaExcursion\": \"{{fecha_excursion}}\",\n  \"participantes\": [\n    {\n      \"nombre\": \"Lucía Fernández\",\n      \"dni\": \"38123456\",\n      \"fechaNacimiento\": \"1994-05-12\",\n      \"telefono\": \"+54 351 555-1234\"\n    }\n  ],\n  \"origenTurista\": {\n    \"latitud\": -31.4135,\n    \"longitud\": -64.18105,\n    \"direccion\": \"Hotel Sheraton, Córdoba Capital\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"reserva_revalidacion_id\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin da de baja la actividad (baja lógica)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/catalogo/actividades/{{actividad_id}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_admin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin ejecuta la revalidación",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/reservas/revalidaciones",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_admin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "console.log(JSON.stringify(r, null, 2));",
+                  "pm.test(\"La reserva de la actividad dada de baja se canceló\", () => {",
+                  "    const c = r.cambios.find(x => x.reservaId === pm.collectionVariables.get(\"reserva_revalidacion_id\"));",
+                  "    pm.expect(c, \"cambio de la reserva\").to.exist;",
+                  "    pm.expect(c.estadoNuevo).to.eql(\"CANCELADA\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Turista ve su reserva cancelada con el motivo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/reservas/{{reserva_revalidacion_id}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"estado = CANCELADA\", () => pm.expect(pm.response.json().estado).to.eql(\"CANCELADA\"));",
+                  "pm.test(\"Motivo: baja de la actividad\", () => pm.expect(pm.response.json().motivoEstado).to.include(\"dada de baja\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin audita todas las reservas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/reservas",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_admin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 · GeoAPI (traslados con OSRM)",
+      "description": "F06. Requiere usuario autenticado; el health check es solo para ADMIN. Si OSRM no está levantado, las\nrutas responden 502 y el health check informa `DOWN`.",
+      "item": [
+        {
+          "name": "Calcular distancia y duración",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/geo/rutas/distancia",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"origen\": {\n    \"latitud\": -31.4135,\n    \"longitud\": -64.18105\n  },\n  \"destino\": {\n    \"latitud\": -31.9868,\n    \"longitud\": -64.9351\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 con OSRM arriba, 502 si está caído\", () => pm.expect([200, 502]).to.include(pm.response.code));",
+                  "console.log(pm.response.text());"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Estimación por query params",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/geo/rutas/estimacion?latOrig=-31.4135&lonOrig=-64.18105&latDest=-31.9868&lonDest=-64.9351",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 con OSRM arriba, 502 si está caído\", () => pm.expect([200, 502]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Coordenada inválida → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/geo/rutas/distancia",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"origen\": {\n    \"latitud\": 999.0,\n    \"longitud\": -64.18\n  },\n  \"destino\": {\n    \"latitud\": -31.9868,\n    \"longitud\": -64.9351\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Health check OSRM (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/geo/health-osrm",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_admin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "console.log(\"OSRM:\", pm.response.json().status);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 · Seguridad: RBAC y trusted zone",
+      "description": "El Gateway valida el JWT (401 sin token o token inválido) y los roles (403). Además elimina los headers\n`X-User-*` que mande el cliente y los vuelve a armar desde el token, así nadie puede hacerse pasar por otro.",
+      "item": [
+        {
+          "name": "Sin token → 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/catalogo/actividades",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Cabalgata al Atardecer por La Cumbrecita\",\n  \"descripcion\": \"Paseo guiado a caballo atravesando bosques de pinos y arroyos serranos.\",\n  \"categoriaId\": 3,\n  \"dificultad\": \"BAJA\",\n  \"precioBase\": 25000.0,\n  \"cupoMaximo\": 12,\n  \"latitudInicio\": -31.9015,\n  \"longitudInicio\": -64.7731,\n  \"direccionPuntoEncuentro\": \"Plaza Central, La Cumbrecita, Córdoba\",\n  \"ciudad\": \"La Cumbrecita\",\n  \"requiereBuenClima\": false,\n  \"edadMinima\": 8,\n  \"edadMaxima\": 75\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 401\", () => pm.response.to.have.status(401));",
+                  "",
+                  "pm.test(\"Error con formato estándar de common-lib\", () => {",
+                  "    const e = pm.response.json();",
+                  "    pm.expect(e).to.have.property(\"status\");",
+                  "    pm.expect(e).to.have.property(\"message\");",
+                  "    console.log(\"Mensaje:\", e.message, e.validaciones || \"\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Token inválido → 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/reservas/mis-reservas",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_falso}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Catálogo público sin token → 200",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/catalogo/actividades",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Turista crea actividad → 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/catalogo/actividades",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Cabalgata al Atardecer por La Cumbrecita\",\n  \"descripcion\": \"Paseo guiado a caballo atravesando bosques de pinos y arroyos serranos.\",\n  \"categoriaId\": 3,\n  \"dificultad\": \"BAJA\",\n  \"precioBase\": 25000.0,\n  \"cupoMaximo\": 12,\n  \"latitudInicio\": -31.9015,\n  \"longitudInicio\": -64.7731,\n  \"direccionPuntoEncuentro\": \"Plaza Central, La Cumbrecita, Córdoba\",\n  \"ciudad\": \"La Cumbrecita\",\n  \"requiereBuenClima\": false,\n  \"edadMinima\": 8,\n  \"edadMaxima\": 75\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));",
+                  "",
+                  "pm.test(\"Error con formato estándar de common-lib\", () => {",
+                  "    const e = pm.response.json();",
+                  "    pm.expect(e).to.have.property(\"status\");",
+                  "    pm.expect(e).to.have.property(\"message\");",
+                  "    console.log(\"Mensaje:\", e.message, e.validaciones || \"\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Turista elimina categoría → 403",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/catalogo/categorias/1",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Operador crea categoría → 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/catalogo/categorias",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_operador}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"No autorizada\",\n  \"descripcion\": \"-\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Turista confirma una reserva → 403",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/reservas/1/confirmar",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Turista lista todas las reservas → 403",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/reservas",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Operador ejecuta revalidación → 403",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/reservas/revalidaciones",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_operador}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Turista consulta health OSRM → 403",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/geo/health-osrm",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Header de identidad falsificado es ignorado",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-Name",
+                "value": "turista2"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/reservas/mis-reservas",
+            "description": "turista1 manda `X-User-Name: turista2` intentando ver reservas ajenas. El Gateway pisa el header con el dato del JWT.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_turista}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Devuelve las reservas de turista1, no de turista2\", () => pm.response.json().forEach(r => pm.expect(r.turistaId).to.eql(\"turista1\")));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "keycloakUrl",
+      "value": "http://localhost:8180"
+    },
+    {
+      "key": "realm",
+      "value": "tpi-realm"
+    },
+    {
+      "key": "clientId",
+      "value": "tpi-client"
+    },
+    {
+      "key": "password",
+      "value": "1234"
+    },
+    {
+      "key": "token_turista",
+      "value": ""
+    },
+    {
+      "key": "token_turista2",
+      "value": ""
+    },
+    {
+      "key": "token_operador",
+      "value": ""
+    },
+    {
+      "key": "token_admin",
+      "value": ""
+    },
+    {
+      "key": "token_falso",
+      "value": "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJmYWxzbyJ9.firma-invalida"
+    },
+    {
+      "key": "categoria_id",
+      "value": ""
+    },
+    {
+      "key": "actividad_id",
+      "value": ""
+    },
+    {
+      "key": "reserva_id",
+      "value": ""
+    },
+    {
+      "key": "reserva_clima_id",
+      "value": ""
+    },
+    {
+      "key": "reserva_revalidacion_id",
+      "value": ""
+    },
+    {
+      "key": "participantes_11",
+      "value": "[]"
+    },
+    {
+      "key": "fecha_excursion",
+      "value": ""
+    },
+    {
+      "key": "fecha_fuera_temporada",
+      "value": ""
+    }
+  ]
 }

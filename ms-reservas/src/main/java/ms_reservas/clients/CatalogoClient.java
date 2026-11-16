@@ -2,7 +2,7 @@ package ms_reservas.clients;
 
 import lombok.RequiredArgsConstructor;
 import ms_reservas.dtos.external.ActividadCatalogoDTO;
-import ms_reservas.exceptions.ResourceNotFoundException;
+import ar.edu.utn.frc.bda.common.exceptions.ResourceNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;

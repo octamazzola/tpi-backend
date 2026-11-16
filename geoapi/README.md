@@ -20,13 +20,15 @@ El microservicio `geoapi` es el componente encargado de los **cálculos geoespac
 
 ## 🗺️ 2. Mapa de Rutas y Compatibilidad con API Gateway
 
-El microservicio admite tanto el consumo directo en el puerto `8083` como el consumo ruteado a través del `api-gateway` en el puerto `8080`:
+El microservicio admite tanto el consumo directo en el puerto `8083` como el consumo ruteado a través del `api-gateway` en el puerto `8080`.
+
+> **En Docker el puerto `8083` no se publica** (trusted zone): solo se accede vía Gateway. El acceso directo queda para desarrollo local con `mvn spring-boot:run`.
 
 | Método | Ruta en GeoAPI (Directo `8083`) | Ruta vía API Gateway (`8080`) | Rol RBAC Requerido | Descripción |
 |:---:|:---|:---|:---:|:---|
 | `POST` | `/api/v1/geo/rutas/distancia` o `/api/v1/rutas/distancia` | `/api/v1/geo/rutas/distancia` | Autenticado (`ROLE_TURISTA`, `ROLE_OPERADOR`, `ROLE_ADMIN`) | Cálculo completo de trayecto con coordenadas anidadas. |
 | `GET` | `/api/v1/geo/rutas/estimacion` o `/api/v1/rutas/estimacion` | `/api/v1/geo/rutas/estimacion` | Autenticado | Estimación rápida mediante Query Parameters. |
-| `GET` | `/api/v1/geo/health-osrm` o `/api/v1/health-osrm` | `/api/v1/geo/health-osrm` | Autenticado | Chequeo de conectividad con el contenedor OSRM. |
+| `GET` | `/api/v1/geo/health-osrm` o `/api/v1/health-osrm` | `/api/v1/geo/health-osrm` | `ROLE_ADMIN` | Chequeo de conectividad con el contenedor OSRM. |
 | `GET` | `/swagger-ui.html` / `/v3/api-docs` | — | Público | Documentación interactiva OpenAPI 3.0. |
 
 ---
@@ -138,12 +140,12 @@ Audita si OSRM está activo en Docker y respondiendo rutas de prueba:
 ## 🔒 5. Integración con API Gateway y Seguridad RBAC
 
 Cuando las peticiones ingresan a través del `api-gateway` (`http://localhost:8080/api/v1/geo/**`):
-1. **Validación JWT:** El Gateway verifica la validez del token emitido por Keycloak (`turismo-realm` / `tpi-realm`).
-2. **Control de Acceso:** Requiere cualquier usuario autenticado (`ROLE_TURISTA`, `ROLE_OPERADOR` o `ROLE_ADMIN`).
+1. **Validación JWT:** El Gateway verifica la validez del token emitido por Keycloak (realm `tpi-realm`).
+2. **Control de Acceso:** Requiere cualquier usuario autenticado (`ROLE_TURISTA`, `ROLE_OPERADOR` o `ROLE_ADMIN`); el health check, solo `ROLE_ADMIN`.
 3. **Respuestas de Seguridad:**
    * Sin token $\rightarrow$ `401 Unauthorized` descriptivo en JSON.
    * Token inválido/expirado $\rightarrow$ `401 Unauthorized`.
-4. **Reenvío:** El Gateway elimina los encabezados sensibles internos y redirige la petición a `http://localhost:8083`.
+4. **Reenvío:** El Gateway redirige la petición a `geoapi` (`http://geoapi:8083` dentro de Docker).
 
 ---
 

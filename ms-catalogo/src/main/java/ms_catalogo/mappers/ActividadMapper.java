@@ -28,7 +28,12 @@ public class ActividadMapper {
                 .latitudInicio(dto.getLatitudInicio())
                 .longitudInicio(dto.getLongitudInicio())
                 .direccionPuntoEncuentro(dto.getDireccionPuntoEncuentro())
+                .ciudad(dto.getCiudad().trim())
                 .requiereBuenClima(dto.getRequiereBuenClima())
+                .edadMinima(dto.getEdadMinima())
+                .edadMaxima(dto.getEdadMaxima())
+                .mesInicioTemporada(dto.getMesInicioTemporada())
+                .mesFinTemporada(dto.getMesFinTemporada())
                 .activa(true)
                 .build();
     }
@@ -46,7 +51,12 @@ public class ActividadMapper {
                 .latitudInicio(entity.getLatitudInicio())
                 .longitudInicio(entity.getLongitudInicio())
                 .direccionPuntoEncuentro(entity.getDireccionPuntoEncuentro())
+                .ciudad(entity.getCiudad())
                 .requiereBuenClima(entity.getRequiereBuenClima())
+                .edadMinima(entity.getEdadMinima())
+                .edadMaxima(entity.getEdadMaxima())
+                .mesInicioTemporada(entity.getMesInicioTemporada())
+                .mesFinTemporada(entity.getMesFinTemporada())
                 .activa(entity.getActiva())
                 .build();
     }
@@ -61,6 +71,11 @@ public class ActividadMapper {
         entity.setLatitudInicio(dto.getLatitudInicio());
         entity.setLongitudInicio(dto.getLongitudInicio());
         entity.setDireccionPuntoEncuentro(dto.getDireccionPuntoEncuentro());
+        entity.setCiudad(dto.getCiudad().trim());
         entity.setRequiereBuenClima(dto.getRequiereBuenClima());
+        entity.setEdadMinima(dto.getEdadMinima());
+        entity.setEdadMaxima(dto.getEdadMaxima());
+        entity.setMesInicioTemporada(dto.getMesInicioTemporada());
+        entity.setMesFinTemporada(dto.getMesFinTemporada());
     }
 }

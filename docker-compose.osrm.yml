@@ -1,3 +1,6 @@
+# OSRM standalone: solo para desarrollo local (geoapi corriendo con mvn spring-boot:run).
+# Si levantás el docker-compose.yml completo NO uses este archivo: ese ya incluye el servicio
+# "osrm" con el mismo nombre de contenedor y chocarían.
 services:
   osrm:
     image: osrm/osrm-backend:latest

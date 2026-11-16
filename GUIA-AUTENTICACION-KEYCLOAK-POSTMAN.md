@@ -80,6 +80,8 @@ Ruta Gateway: `/api/v1/reservas/...`
 | `GET` | `/api/v1/reservas/actividad/{actividadId}` | `OPERADOR`, `ADMIN` | Lista contingente de personas anotadas a una salida. |
 | `PUT` | `/api/v1/reservas/{id}/confirmar` | `OPERADOR`, `ADMIN` | Confirma la reserva y dispara mail de confirmación vía Mailpit. |
 | `PUT` | `/api/v1/reservas/{id}/cancelar` | `TURISTA`, `ADMIN` | Cancela la reserva y dispara notificación vía Mailpit. |
+| `GET` | `/api/v1/reservas` | `ADMIN` | Auditoría: todas las reservas del sistema. |
+| `POST` | `/api/v1/reservas/revalidaciones` | `ADMIN` | Revalida las reservas vigentes (baja, cupo, temporada, clima, regla de 48 hs). |
 
 ---
 
@@ -131,6 +133,8 @@ En [`SecurityConfig.java`](file:///c:/Users/RYZEN/OneDrive/Universidad/tercer%20
 ---
 
 ## 🛠️ 6. Pasos para Configurar los Roles en Keycloak
+
+> ✅ **Automático con Docker:** `docker compose up` importa `keycloak/tpi-realm.json` (realm `tpi-realm`, cliente público `tpi-client` con Direct Access Grants, roles `TURISTA`/`OPERADOR`/`ADMIN` y usuarios `turista1`, `turista2`, `operador1`, `admin1` con contraseña `1234` y email `<usuario>@example.com`). Los pasos manuales de abajo solo hacen falta si querés crear usuarios o roles nuevos.
 
 1. **Crear los Roles:**
    * En Keycloak (`http://localhost:8180` en realm `tpi-realm`), andá a **Realm roles** $\rightarrow$ **Create role**.

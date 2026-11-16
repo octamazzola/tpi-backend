@@ -52,9 +52,22 @@ public class Actividad {
     @Column(length = 255)
     private String direccionPuntoEncuentro;
 
+    // Localidad del punto de encuentro (ej. "Villa Carlos Paz"). Se usa para el filtro ?ciudad=
+    @Column(length = 100)
+    private String ciudad;
+
     // Bandera consultada por ms-reservas para determinar si se debe validar el pronóstico del clima con Open-Meteo
     @Column(nullable = false)
     private Boolean requiereBuenClima;
+
+    // Restricciones de participación (opcionales): edad de cada participante el día de la excursión
+    private Integer edadMinima;
+    private Integer edadMaxima;
+
+    // Temporada (opcional): meses 1-12 en los que se realiza la actividad. Admite temporadas que cruzan
+    // el año (ej. inicio 11 y fin 3 = noviembre a marzo). Si ambos son null, se realiza todo el año.
+    private Integer mesInicioTemporada;
+    private Integer mesFinTemporada;
 
     // Baja lógica: DELETE /actividades/{id} cambia activa a false para no romper reservas históricas
     @Builder.Default

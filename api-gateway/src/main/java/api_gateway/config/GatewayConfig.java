@@ -38,6 +38,7 @@ public class GatewayConfig {
                 .route("geoapi", r -> r
                         .path("/api/v1/geo/**")
                         .uri(geoapiUrl))
+
                 .build();
     }
 }

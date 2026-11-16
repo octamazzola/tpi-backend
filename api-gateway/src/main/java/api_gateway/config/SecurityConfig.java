@@ -66,6 +66,7 @@ public class SecurityConfig {
                         // =========================================================================
                         // 3. Reservas (RBAC Granular)
                         // =========================================================================
+                        .pathMatchers(HttpMethod.POST, "/api/v1/reservas/revalidaciones").hasRole("ADMIN")
                         .pathMatchers(HttpMethod.POST, "/api/v1/reservas").hasAnyRole("TURISTA", "ADMIN")
                         .pathMatchers(HttpMethod.GET, "/api/v1/reservas/mis-reservas").hasAnyRole("TURISTA", "ADMIN")
                         .pathMatchers(HttpMethod.GET, "/api/v1/reservas/actividad/**").hasAnyRole("OPERADOR", "PROVEEDOR", "ADMIN")

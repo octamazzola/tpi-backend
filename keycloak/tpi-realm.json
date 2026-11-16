@@ -1,0 +1,68 @@
+{
+  "realm": "tpi-realm",
+  "enabled": true,
+  "sslRequired": "none",
+  "accessTokenLifespan": 1800,
+  "roles": {
+    "realm": [
+      { "name": "TURISTA", "description": "Cliente final: explora el catálogo y gestiona sus propias reservas" },
+      { "name": "OPERADOR", "description": "Prestador turístico: publica actividades y confirma reservas" },
+      { "name": "ADMIN", "description": "Administrador de la plataforma: acceso total" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "tpi-client",
+      "name": "TPI Backend (Postman / Frontend)",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
+      "protocol": "openid-connect"
+    }
+  ],
+  "users": [
+    {
+      "username": "turista1",
+      "enabled": true,
+      "email": "turista1@example.com",
+      "emailVerified": true,
+      "firstName": "Turista",
+      "lastName": "Uno",
+      "credentials": [{ "type": "password", "value": "1234", "temporary": false }],
+      "realmRoles": ["TURISTA"]
+    },
+    {
+      "username": "turista2",
+      "enabled": true,
+      "email": "turista2@example.com",
+      "emailVerified": true,
+      "firstName": "Turista",
+      "lastName": "Dos",
+      "credentials": [{ "type": "password", "value": "1234", "temporary": false }],
+      "realmRoles": ["TURISTA"]
+    },
+    {
+      "username": "operador1",
+      "enabled": true,
+      "email": "operador1@example.com",
+      "emailVerified": true,
+      "firstName": "Operador",
+      "lastName": "Uno",
+      "credentials": [{ "type": "password", "value": "1234", "temporary": false }],
+      "realmRoles": ["OPERADOR"]
+    },
+    {
+      "username": "admin1",
+      "enabled": true,
+      "email": "admin1@example.com",
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "Uno",
+      "credentials": [{ "type": "password", "value": "1234", "temporary": false }],
+      "realmRoles": ["ADMIN"]
+    }
+  ]
+}

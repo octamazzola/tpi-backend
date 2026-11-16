@@ -29,14 +29,16 @@ public class ActividadController {
     /**
      * GET /api/v1/catalogo/actividades
      * Lista actividades activas con soporte para filtros combinados opcionales.
-     * Ejemplo: /api/v1/catalogo/actividades?categoriaId=1&dificultad=MEDIA&precioMax=50000
+     * Ejemplo: /api/v1/catalogo/actividades?categoriaId=1&dificultad=MEDIA&precioMax=50000&ciudad=carlos paz
+     * El filtro ciudad es parcial y no distingue mayúsculas ni tildes. Sin coincidencias devuelve 200 con [].
      */
     @GetMapping
     public ResponseEntity<List<ActividadResponseDTO>> listar(
             @RequestParam(required = false) Long categoriaId,
             @RequestParam(required = false) Dificultad dificultad,
-            @RequestParam(required = false) Double precioMax) {
-        return ResponseEntity.ok(actividadService.listarActividades(categoriaId, dificultad, precioMax));
+            @RequestParam(required = false) Double precioMax,
+            @RequestParam(required = false) String ciudad) {
+        return ResponseEntity.ok(actividadService.listarActividades(categoriaId, dificultad, precioMax, ciudad));
     }
 
     /**

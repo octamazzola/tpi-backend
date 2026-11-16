@@ -2,6 +2,8 @@
 **Backend de Aplicaciones — UTN FRC (2026)**  
 **Arquitectura de Microservicios: Spring Boot 3.3.5 / Java 21 / Docker**
 
+> ℹ️ **Documento histórico:** fue la guía para construir la primera versión del servicio. La implementación actual (participantes, restricciones de edad y temporada, revalidación programada, identidad vía Gateway, `common-lib`) está descripta en [`ms-reservas/README.md`](ms-reservas/README.md), que es la referencia vigente.
+
 Este documento está diseñado para guiar paso a paso a los desarrolladores del equipo en la construcción de **`ms-reservas`**, siguiendo las mismas decisiones técnicas, estándares arquitectónicos y directrices de calidad que implementamos en `ms-catalogo`, `geoapi` y `api-gateway`.
 
 ---

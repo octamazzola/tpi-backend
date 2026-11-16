@@ -1,5 +1,6 @@
 package ms_catalogo.dtos;
 
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
@@ -42,5 +43,24 @@ public class ActividadPatchDTO {
     @Size(max = 255, message = "La dirección del punto de encuentro no puede superar los 255 caracteres")
     private String direccionPuntoEncuentro;
 
+    @Size(min = 1, max = 100, message = "La ciudad debe tener entre 1 y 100 caracteres")
+    private String ciudad;
+
     private Boolean requiereBuenClima;
+
+    @Min(value = 0, message = "La edad mínima no puede ser negativa")
+    @Max(value = 120, message = "La edad mínima no puede superar los 120 años")
+    private Integer edadMinima;
+
+    @Min(value = 0, message = "La edad máxima no puede ser negativa")
+    @Max(value = 120, message = "La edad máxima no puede superar los 120 años")
+    private Integer edadMaxima;
+
+    @Min(value = 1, message = "El mes de inicio de temporada debe estar entre 1 y 12")
+    @Max(value = 12, message = "El mes de inicio de temporada debe estar entre 1 y 12")
+    private Integer mesInicioTemporada;
+
+    @Min(value = 1, message = "El mes de fin de temporada debe estar entre 1 y 12")
+    @Max(value = 12, message = "El mes de fin de temporada debe estar entre 1 y 12")
+    private Integer mesFinTemporada;
 }

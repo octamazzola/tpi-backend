@@ -5,8 +5,9 @@ import lombok.RequiredArgsConstructor;
 import ms_catalogo.dtos.CategoriaRequestDTO;
 import ms_catalogo.dtos.CategoriaResponseDTO;
 import ms_catalogo.entities.Categoria;
-import ms_catalogo.exceptions.BadRequestException;
-import ms_catalogo.exceptions.ResourceNotFoundException;
+import ar.edu.utn.frc.bda.common.exceptions.BadRequestException;
+import ar.edu.utn.frc.bda.common.exceptions.ConflictException;
+import ar.edu.utn.frc.bda.common.exceptions.ResourceNotFoundException;
 import ms_catalogo.mappers.CategoriaMapper;
 import ms_catalogo.repositories.ActividadRepository;
 import ms_catalogo.repositories.CategoriaRepository;
@@ -61,7 +62,7 @@ public class CategoriaServiceImpl implements CategoriaService {
 
         // Validación de Integridad Referencial: no se puede eliminar si hay actividades asociadas
         if (actividadRepository.existsByCategoriaId(id)) {
-            throw new BadRequestException("No es posible eliminar la categoría con ID " + id + " porque tiene actividades turísticas vinculadas.");
+            throw new ConflictException("No es posible eliminar la categoría con ID " + id + " porque tiene actividades turísticas vinculadas.");
         }
 
         categoriaRepository.deleteById(id);
