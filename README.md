@@ -245,7 +245,7 @@ erDiagram
 
     CATEGORIAS ||--o{ ACTIVIDADES : "agrupa 1 a 0..N"
     RESERVAS ||--|{ PARTICIPANTES : "contiene 1 a 1..N"
-    ACTIVIDADES ..o{ RESERVAS : "referencia logica actividad_id"
+    ACTIVIDADES ||..o{ RESERVAS : "referencia logica actividad_id"
 ```
 
 **Decisiones clave de persistencia:**
