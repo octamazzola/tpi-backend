@@ -1,15 +1,10 @@
-# Carpeta específica solicitada
+# Carpeta de documentación local (no versionada)
 gitignore/
 
-# Ignorar archivos Markdown excepto README.md y guías del proyecto
+# Ignorar archivos Markdown excepto el README.md principal
 *.md
 **/*.md
 !README.md
-!**/README.md
-!GUIA-AUTENTICACION-KEYCLOAK-POSTMAN.md
-!ROLES-Y-PERMISOS-RBAC.md
-!MS_RESERVAS.md
-!CAMBIOS.md
 
 # Maven - archivos de compilación y empaquetado
 target/
@@ -30,10 +25,6 @@ target/
 *.log
 *.tmp
 *.bak
-
-# SO
-.DS_Store
-Thumbs.db
 
 # Datos de mapas pesados de OSRM (pesan +4 GB y GitHub solo permite archivos <100MB)
 osrm-data/
