@@ -90,13 +90,15 @@ services:
       - tpi-network
 
   # =========================================================================
-  # 5. Microservicio Geoespacial: geoapi (8083, interno)
+  # 5. Microservicio Geoespacial: geoapi (8083, solo loopback local para Swagger)
   # =========================================================================
   geoapi:
     container_name: geoapi
     build:
       context: ./geoapi
       dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:8083:8083"
     environment:
       SERVER_PORT: 8083
       # Dentro de la red de Docker, OSRM se resuelve por el nombre del servicio
@@ -108,13 +110,15 @@ services:
       - tpi-network
 
   # =========================================================================
-  # 6. Microservicio de Catálogo: ms-catalogo (8081, interno)
+  # 6. Microservicio de Catálogo: ms-catalogo (8081, solo loopback local para Swagger)
   # =========================================================================
   ms-catalogo:
     container_name: ms-catalogo
     build:
       context: ./ms-catalogo
       dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:8081:8081"
     environment:
       # 12-Factor App: las variables sobreescriben application.properties
       SPRING_APPLICATION_NAME: ms-catalogo
@@ -134,13 +138,15 @@ services:
       - tpi-network
 
   # =========================================================================
-  # 7. Microservicio de Reservas: ms-reservas (8082, interno) - orquestador
+  # 7. Microservicio de Reservas: ms-reservas (8082, solo loopback local para Swagger)
   # =========================================================================
   ms-reservas:
     container_name: ms-reservas
     build:
       context: ./ms-reservas
       dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:8082:8082"
     environment:
       SPRING_APPLICATION_NAME: ms-reservas
       SERVER_PORT: 8082
