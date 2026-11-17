@@ -66,7 +66,7 @@ El sistema implementa una arquitectura de seguridad **Zero-Trust en el borde (Ed
   * Publicar nuevas actividades turísticas en el catálogo (`POST /actividades`).
   * Modificar o actualizar sus actividades existentes: punto de encuentro, precio base, cupo máximo o requerimientos climáticos (`PUT` / `PATCH`).
   * Consultar el listado de reservas y pasajeros confirmados de sus actividades para armar las listas de asistencia.
-  * Confirmar reservas pendientes (`PUT /confirmar`), lo que automáticamente emite el correo de confirmación al turista vía Mailpit.
+  * Confirmar reservas pendientes (`PUT /confirmacion`), lo que automáticamente emite el correo de confirmación al turista vía Mailpit.
 * **Qué NO puede hacer:**
   * No puede realizar bajas definitivas o lógicas no supervisadas.
   * No puede crear ni eliminar categorías temáticas maestras (para evitar proliferación de categorías redundantes o desorden en el catálogo global).
@@ -103,8 +103,8 @@ El sistema implementa una arquitectura de seguridad **Zero-Trust en el borde (Ed
 | **ms-reservas** | `GET` | `/api/v1/reservas/mis-reservas` | ❌ | ✅ | ❌ | ❌ | Historial propio del turista obtenido del claim del JWT. |
 | **ms-reservas** | `GET` | `/api/v1/reservas/{id}` | ❌ | ✅ *(Propia)* | ✅ *(Propia)* | ✅ *(Todas)* | Detalle con itinerario vial y reporte meteorológico. |
 | **ms-reservas** | `GET` | `/api/v1/reservas/actividad/{id}` | ❌ | ❌ | ✅ | ✅ | Listado de inscriptos para el guía u operador. |
-| **ms-reservas** | `PATCH` | `/api/v1/reservas/{id}/confirmar` | ❌ | ❌ | ✅ | ✅ | Confirma la reserva y emite voucher vía Mailpit. |
-| **ms-reservas** | `PATCH` | `/api/v1/reservas/{id}/cancelar` | ❌ | ✅ *(Propia)* | ❌ | ✅ | Cancelación voluntaria y liberación de cupos. |
+| **ms-reservas** | `PATCH` | `/api/v1/reservas/{id}/confirmacion` | ❌ | ❌ | ✅ | ✅ | Confirma la reserva y emite voucher vía Mailpit. |
+| **ms-reservas** | `PATCH` | `/api/v1/reservas/{id}/cancelacion` | ❌ | ✅ *(Propia)* | ❌ | ✅ | Cancelación voluntaria y liberación de cupos. |
 | **ms-reservas** | `GET` | `/api/v1/reservas` | ❌ | ❌ | ❌ | ✅ | Auditoría y control global de reservas del sistema. |
 | **ms-reservas** | `POST` | `/api/v1/reservas/revalidaciones` | ❌ | ❌ | ❌ | ✅ | Revalidación manual de reservas vigentes (también corre sola cada hora). |
 | **geoapi** | `POST` | `/api/v1/geo/rutas/distancia` | ❌ | ✅ | ✅ | ✅ | Cálculo terrestre de distancia (km) y tiempo (min). |

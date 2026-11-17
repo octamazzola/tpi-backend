@@ -48,7 +48,7 @@ El Gateway actúa como **OAuth2 Resource Server** validando tokens JWT stateless
   * `POST/DELETE /api/v1/catalogo/categorias/**` $\rightarrow$ Exclusivo `ROLE_ADMIN`.
   * `POST /api/v1/reservas` $\rightarrow$ Requiere `ROLE_TURISTA` o `ROLE_ADMIN`.
   * `GET /api/v1/reservas` y `POST /api/v1/reservas/revalidaciones` $\rightarrow$ Exclusivo `ROLE_ADMIN`.
-  * `PUT /api/v1/reservas/*/confirmar` $\rightarrow$ `ROLE_OPERADOR` o `ROLE_ADMIN`; `PUT .../cancelar` $\rightarrow$ `ROLE_TURISTA` o `ROLE_ADMIN`.
+  * `PUT /api/v1/reservas/*/confirmacion` $\rightarrow$ `ROLE_OPERADOR` o `ROLE_ADMIN`; `PUT .../cancelacion` $\rightarrow$ `ROLE_TURISTA` o `ROLE_ADMIN`.
   * `GET /api/v1/geo/health-osrm` $\rightarrow$ Exclusivo `ROLE_ADMIN`; resto de `/api/v1/geo/**` $\rightarrow$ usuario autenticado.
   * Swagger UI y `/api-docs/**` $\rightarrow$ Público (solo lectura de contratos).
 

@@ -81,19 +81,19 @@ public class ReservaController {
     }
 
     /**
-     * PATCH /api/v1/reservas/{id}/confirmar
+     * PATCH /api/v1/reservas/{id}/confirmacion
      * Confirma una reserva pendiente (OPERADOR, ADMIN).
      */
-    @PatchMapping("/{id}/confirmar")
+    @PatchMapping("/{id}/confirmacion")
     public ResponseEntity<ReservaResponseDTO> confirmar(@PathVariable Long id) {
         return ResponseEntity.ok(reservaService.confirmar(id));
     }
 
     /**
-     * PATCH /api/v1/reservas/{id}/cancelar
+     * PATCH /api/v1/reservas/{id}/cancelacion
      * Cancela la reserva (TURISTA solo las propias, ADMIN cualquiera).
      */
-    @PatchMapping("/{id}/cancelar")
+    @PatchMapping("/{id}/cancelacion")
     public ResponseEntity<ReservaResponseDTO> cancelar(@PathVariable Long id, HttpServletRequest request) {
         return ResponseEntity.ok(reservaService.cancelar(id, usuario(request)));
     }

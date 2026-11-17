@@ -8,12 +8,16 @@ import java.time.Period;
 import java.util.Optional;
 
 /**
- * Reglas de negocio puras (sin dependencias) sobre si una actividad puede realizarse.
+ * Reglas de negocio puras (sin dependencias) sobre si una actividad puede
+ * realizarse.
  * Se usan al crear una reserva y al revalidarla.
  */
 public final class ReglasActividad {
 
-    /** RN02: probabilidad de lluvia a partir de la cual se rechaza (estrictamente mayor). */
+    /**
+     * RN02: probabilidad de lluvia a partir de la cual se rechaza (estrictamente
+     * mayor).
+     */
     public static final int PROBABILIDAD_LLUVIA_MAX = 70;
 
     /** RN02: códigos WMO >= 61 son lluvia, nieve o tormenta. */
@@ -28,10 +32,11 @@ public final class ReglasActividad {
     }
 
     /**
-     * Devuelve el motivo si la edad no está dentro del rango permitido por la actividad.
+     * Devuelve el motivo si la edad no está dentro del rango permitido por la
+     * actividad.
      */
     public static Optional<String> validarEdad(ActividadCatalogoDTO actividad, String nombre,
-                                               LocalDate fechaNacimiento, LocalDate fechaExcursion) {
+            LocalDate fechaNacimiento, LocalDate fechaExcursion) {
         int edad = edadAl(fechaNacimiento, fechaExcursion);
         if (actividad.edadMinima() != null && edad < actividad.edadMinima()) {
             return Optional.of(nombre + " tendrá " + edad + " años y la actividad exige una edad mínima de "
@@ -45,8 +50,10 @@ public final class ReglasActividad {
     }
 
     /**
-     * true si la fecha cae dentro de la temporada de la actividad. Soporta temporadas que cruzan el año
-     * (ej. septiembre a abril). Sin temporada definida, la actividad se realiza todo el año.
+     * true si la fecha cae dentro de la temporada de la actividad. Soporta
+     * temporadas que cruzan el año
+     * (ej. septiembre a abril). Sin temporada definida, la actividad se realiza
+     * todo el año.
      */
     public static boolean enTemporada(ActividadCatalogoDTO actividad, LocalDate fecha) {
         Integer inicio = actividad.mesInicioTemporada();
@@ -58,7 +65,9 @@ public final class ReglasActividad {
         return inicio <= fin ? (mes >= inicio && mes <= fin) : (mes >= inicio || mes <= fin);
     }
 
-    /** RN02: el pronóstico impide realizar una actividad que requiere buen clima. */
+    /**
+     * RN02: el pronóstico impide realizar una actividad que requiere buen clima.
+     */
     public static boolean climaAdverso(PronosticoDia p) {
         return p.probabilidadLluvia() > PROBABILIDAD_LLUVIA_MAX || p.weatherCode() >= WEATHER_CODE_LLUVIA;
     }

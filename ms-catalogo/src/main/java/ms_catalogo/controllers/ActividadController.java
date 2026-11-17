@@ -44,6 +44,7 @@ public class ActividadController {
     /**
      * GET /api/v1/catalogo/actividades/{id}
      * Detalle completo de una excursión por su identificador.
+     * Consultado también por ms-reservas (vía RestClient) para obtener precio, cupo, coordenadas y restricciones.
      */
     @GetMapping("/{id}")
     public ResponseEntity<ActividadResponseDTO> obtenerPorId(@PathVariable Long id) {
@@ -52,8 +53,7 @@ public class ActividadController {
 
     /**
      * GET /api/v1/catalogo/actividades/{id}/disponibilidad
-     * Endpoint inter-servicio: consultado por ms-reservas para validar cupos máximos
-     * y si la actividad sigue activa antes de generar una reserva.
+     * Resumen rápido de disponibilidad (estado activo y cupo máximo configurado) de una actividad.
      */
     @GetMapping("/{id}/disponibilidad")
     public ResponseEntity<DisponibilidadDTO> consultarDisponibilidad(@PathVariable Long id) {

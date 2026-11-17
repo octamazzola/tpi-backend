@@ -1,5 +1,6 @@
 package utnfc.isi.back.spring.geoapi.service.impl;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -17,6 +18,7 @@ import java.util.Locale;
  * Implementación de RutaService comunicándose con el motor OSRM vía RestClient.
  */
 @Service
+@Slf4j
 public class RutaServiceImpl implements RutaService {
 
     private final RestClient restClient;
@@ -39,6 +41,9 @@ public class RutaServiceImpl implements RutaService {
 
     @Override
     public RutaResponse estimarRuta(double latOrig, double lonOrig, double latDest, double lonDest) {
+        validarCoordenadas(latOrig, lonOrig, "origen");
+        validarCoordenadas(latDest, lonDest, "destino");
+
         // OSRM exige por especificación estándar: {longitud},{latitud};{longitud},{latitud}
         String coordinates = String.format(Locale.ROOT, "%.8f,%.8f;%.8f,%.8f",
                 lonOrig, latOrig,
@@ -51,7 +56,7 @@ public class RutaServiceImpl implements RutaService {
                     .retrieve()
                     .body(OsrmRouteResponse.class);
         } catch (RestClientException ex) {
-            ex.printStackTrace();
+            log.warn("No fue posible consultar el motor de rutas OSRM: {}", ex.getMessage());
             throw new OsrmUnavailableException("No fue posible consultar el motor de rutas OSRM: " + ex.getMessage(), ex);
         }
 
@@ -92,6 +97,15 @@ public class RutaServiceImpl implements RutaService {
             return new OsrmStatusDTO("DEGRADED", properties.baseUrl(), "OSRM respondió con código: " + (testResp != null ? testResp.code() : "NULL"));
         } catch (Exception ex) {
             return new OsrmStatusDTO("DOWN", properties.baseUrl(), "Fallo de conexión con OSRM: " + ex.getMessage());
+        }
+    }
+
+    private void validarCoordenadas(double latitud, double longitud, String punto) {
+        if (Double.isNaN(latitud) || latitud < -90.0 || latitud > 90.0) {
+            throw new IllegalArgumentException("La latitud de " + punto + " debe estar entre -90 y 90");
+        }
+        if (Double.isNaN(longitud) || longitud < -180.0 || longitud > 180.0) {
+            throw new IllegalArgumentException("La longitud de " + punto + " debe estar entre -180 y 180");
         }
     }
 }

@@ -1018,7 +1018,7 @@
                                                       "header":  [
 
                                                                  ],
-                                                      "url":  "{{baseUrl}}/api/v1/reservas/{{reserva_id}}/confirmar",
+                                                      "url":  "{{baseUrl}}/api/v1/reservas/{{reserva_id}}/confirmacion",
                                                       "description":  "",
                                                       "auth":  {
                                                                    "type":  "bearer",
@@ -1051,7 +1051,7 @@
                                                       "header":  [
 
                                                                  ],
-                                                      "url":  "{{baseUrl}}/api/v1/reservas/{{reserva_id}}/cancelar",
+                                                      "url":  "{{baseUrl}}/api/v1/reservas/{{reserva_id}}/cancelacion",
                                                       "description":  "",
                                                       "auth":  {
                                                                    "type":  "bearer",
@@ -1463,7 +1463,7 @@
                                                       "header":  [
 
                                                                  ],
-                                                      "url":  "{{baseUrl}}/api/v1/reservas/{{reserva_id}}/cancelar",
+                                                      "url":  "{{baseUrl}}/api/v1/reservas/{{reserva_id}}/cancelacion",
                                                       "description":  "",
                                                       "auth":  {
                                                                    "type":  "bearer",
@@ -1502,7 +1502,7 @@
                                                       "header":  [
 
                                                                  ],
-                                                      "url":  "{{baseUrl}}/api/v1/reservas/{{reserva_id}}/confirmar",
+                                                      "url":  "{{baseUrl}}/api/v1/reservas/{{reserva_id}}/confirmacion",
                                                       "description":  "",
                                                       "auth":  {
                                                                    "type":  "bearer",
@@ -1580,7 +1580,7 @@
                                                       "header":  [
 
                                                                  ],
-                                                      "url":  "{{baseUrl}}/api/v1/reservas/{{reserva_clima_id}}/cancelar",
+                                                      "url":  "{{baseUrl}}/api/v1/reservas/{{reserva_clima_id}}/cancelacion",
                                                       "description":  "",
                                                       "auth":  {
                                                                    "type":  "bearer",
@@ -1619,7 +1619,7 @@
                                                       "header":  [
 
                                                                  ],
-                                                      "url":  "{{baseUrl}}/api/v1/reservas/{{reserva_clima_id}}/cancelar",
+                                                      "url":  "{{baseUrl}}/api/v1/reservas/{{reserva_clima_id}}/cancelacion",
                                                       "description":  "Libera el cupo usado en la carpeta 03. Si quedó RECHAZADA_POR_CLIMA responde 400 (estado final), y también es válido.",
                                                       "auth":  {
                                                                    "type":  "bearer",

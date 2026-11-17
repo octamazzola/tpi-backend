@@ -69,8 +69,8 @@ Detalle completo en [ROLES-Y-PERMISOS-RBAC.md](ROLES-Y-PERMISOS-RBAC.md).
 | `GET` | `/mis-reservas` | `TURISTA`, `ADMIN` | Reservas del usuario del token. |
 | `GET` | `/{id}` | Autenticado | Detalle (un turista solo ve las propias). |
 | `GET` | `/actividad/{actividadId}` | `OPERADOR`, `ADMIN` | Contingente de una excursión. |
-| `PUT` | `/{id}/confirmar` | `OPERADOR`, `ADMIN` | Confirma y envía el voucher por email. |
-| `PUT` | `/{id}/cancelar` | `TURISTA`, `ADMIN` | Cancela, libera el cupo y notifica. |
+| `PUT` | `/{id}/confirmacion` | `OPERADOR`, `ADMIN` | Confirma y envía el voucher por email. |
+| `PUT` | `/{id}/cancelacion` | `TURISTA`, `ADMIN` | Cancela, libera el cupo y notifica. |
 | `POST` | `/revalidaciones` | `ADMIN` | Ejecuta la revalidación de reservas en el momento. |
 
 ### GeoAPI — `/api/v1/geo`
